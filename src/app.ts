@@ -579,6 +579,15 @@ async function handleConnect(): Promise<void> {
     return;
   }
 
+  if (!(navigator as any).bluetooth) {
+    chat.addAssistantMessage(
+      '当前浏览器不支持 Web Bluetooth。\n\n' +
+      '请使用 **Chrome** 或 **Edge** 浏览器打开本页面。\n' +
+      'iOS 设备暂不支持（Safari 未实现 Web Bluetooth）。'
+    );
+    return;
+  }
+
   const statusDot = $('device-status') as HTMLSpanElement;
 
   if (statusDot.classList.contains('connected') && bt.disconnect) {
