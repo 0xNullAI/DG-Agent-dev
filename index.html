@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#1a1a2e">
+  <meta name="theme-color" content="#f5f5f7" id="meta-theme">
   <title>DG-Agent</title>
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
   <div id="app">
-    <!-- Top bar -->
     <header id="topbar">
       <div class="topbar-left">
         <h1>DG-Agent</h1>
@@ -17,11 +16,18 @@
         <span id="device-info"></span>
       </div>
       <div class="topbar-right">
-        <!-- provider quick-switch, history, connect, settings buttons injected by app.ts -->
+        <select id="provider-quick" title="切换 AI 服务商">
+          <option value="gemini">Gemini</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Claude</option>
+        </select>
+        <button id="btn-history" title="历史记录">📋</button>
+        <button id="btn-connect" title="连接设备">🔗</button>
+        <button id="btn-settings" title="设置">⚙️</button>
+        <button id="btn-theme" title="切换主题">🌙</button>
       </div>
     </header>
 
-    <!-- Device status bar (shown when connected) -->
     <div id="device-bar" class="hidden">
       <div class="channel" id="channel-a">
         <span>A通道</span>
@@ -35,10 +41,9 @@
         <div class="strength-bar"><div class="strength-fill" id="strength-b"></div></div>
         <span class="strength-value" id="strength-b-val">0</span>
       </div>
-      <div class="battery" id="battery">&#x1F50B; --</div>
+      <div class="battery" id="battery">🔋 --</div>
     </div>
 
-    <!-- History drawer -->
     <div id="history-drawer" class="hidden">
       <div class="drawer-header">
         <h3>历史记录</h3>
@@ -47,29 +52,25 @@
       <div id="history-list"></div>
     </div>
 
-    <!-- Chat messages area -->
     <div id="chat-container">
       <div id="messages"></div>
     </div>
 
-    <!-- Input area -->
     <div id="input-area">
       <textarea id="user-input" placeholder="输入消息..." rows="1"></textarea>
       <button id="btn-send">发送</button>
     </div>
 
-    <!-- Footer disclaimer -->
     <footer id="disclaimer">
       本项目仅供学习交流使用，请遵守当地法律法规。
       <a href="https://github.com/0xNullAI/DG-Agent" target="_blank">GitHub</a>
     </footer>
 
-    <!-- Settings modal -->
     <div id="settings-modal" class="modal hidden">
       <div class="modal-content">
         <div class="modal-header">
           <h2>设置</h2>
-          <button class="modal-close" id="btn-close-settings">&#x2715;</button>
+          <button class="modal-close" id="btn-close-settings">✕</button>
         </div>
         <div class="modal-body">
           <h3>场景模式</h3>
@@ -87,9 +88,7 @@
               <div id="saved-prompts-list"></div>
             </div>
           </div>
-
           <hr class="modal-divider">
-
           <h3>AI 服务商</h3>
           <div id="provider-select"></div>
           <div id="provider-config"></div>

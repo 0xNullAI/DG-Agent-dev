@@ -77,14 +77,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Save prompt button
   document.getElementById('btn-save-prompt')!.addEventListener('click', handleSaveCustomPrompt);
 
-  // Create history button in topbar
-  createHistoryButton();
+  // History
+  document.getElementById('btn-history')!.addEventListener('click', toggleHistoryDrawer);
+  document.getElementById('btn-new-conv')!.addEventListener('click', startNewConversation);
 
-  // Create provider quick-switch in topbar
-  createProviderQuickSwitch();
+  // Provider quick-switch
+  const quickSelect = document.getElementById('provider-quick') as HTMLSelectElement;
+  const saved = loadAllSettings();
+  quickSelect.value = saved.provider;
+  quickSelect.addEventListener('change', () => {
+    const radio = document.getElementById(`provider-${quickSelect.value}`) as HTMLInputElement | null;
+    if (radio) {
+      radio.checked = true;
+      renderProviderConfig(quickSelect.value);
+    }
+    saveSettings();
+  });
 
-  // Create footer disclaimer
-  createFooterDisclaimer();
+  // Theme toggle
+  document.getElementById('btn-theme')!.addEventListener('click', toggleTheme);
+
+  // Restore theme
+  const savedTheme = localStorage.getItem('dg-agent-theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  const themeBtn = document.getElementById('btn-theme');
+  if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+  const metaTheme = document.getElementById('meta-theme') as HTMLMetaElement | null;
+  if (metaTheme) metaTheme.content = savedTheme === 'dark' ? '#1a1a2e' : '#f5f5f7';
 
   // Populate preset selector & provider radio buttons
   renderPresetSelect();
@@ -108,77 +128,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// -- Create UI elements --
+// -- Theme toggle --
 
-function createHistoryButton(): void {
-  const topbarRight = document.querySelector('.topbar-right') as HTMLDivElement;
-  const historyBtn = document.createElement('button');
-  historyBtn.id = 'btn-history';
-  historyBtn.title = '\u5386\u53F2\u8BB0\u5F55';
-  historyBtn.textContent = '\uD83D\uDCCB';
-  historyBtn.addEventListener('click', toggleHistoryDrawer);
-  // Insert before other buttons
-  topbarRight.insertBefore(historyBtn, topbarRight.firstChild);
+function toggleTheme(): void {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
 
-  // Create history drawer
-  const drawer = document.createElement('div');
-  drawer.id = 'history-drawer';
-  drawer.className = 'history-drawer hidden';
-  drawer.innerHTML = `
-    <div class="history-drawer-header">
-      <h3>\u5386\u53F2\u8BB0\u5F55</h3>
-      <button id="btn-new-conversation" class="btn-sm">\u65B0\u5BF9\u8BDD</button>
-    </div>
-    <div id="history-list" class="history-list"></div>
-  `;
-  document.getElementById('app')!.appendChild(drawer);
+  // Update button icon
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
 
-  // Wire new conversation button (deferred until DOM is ready)
-  setTimeout(() => {
-    document.getElementById('btn-new-conversation')!.addEventListener('click', startNewConversation);
-  }, 0);
-}
+  // Update meta theme color
+  const meta = document.getElementById('meta-theme') as HTMLMetaElement | null;
+  if (meta) meta.content = next === 'dark' ? '#1a1a2e' : '#f5f5f7';
 
-function createProviderQuickSwitch(): void {
-  const topbarRight = document.querySelector('.topbar-right') as HTMLDivElement;
-  const select = document.createElement('select');
-  select.id = 'provider-quick';
-  select.className = 'provider-quick-select';
-  select.title = '\u5207\u6362 AI \u670D\u52A1\u5546';
-
-  PROVIDERS.forEach((p) => {
-    const option = document.createElement('option');
-    option.value = p.id;
-    option.textContent = p.name;
-    select.appendChild(option);
-  });
-
-  // Set current value from saved settings
-  const saved = loadAllSettings();
-  select.value = saved.provider;
-
-  select.addEventListener('change', () => {
-    const newProvider = select.value;
-    // Update the radio button in settings if open
-    const radio = document.getElementById(`provider-${newProvider}`) as HTMLInputElement | null;
-    if (radio) {
-      radio.checked = true;
-      renderProviderConfig(newProvider);
-    }
-    saveSettings();
-  });
-
-  // Insert before the history button (first child after our history btn)
-  const connectBtn = document.getElementById('btn-connect')!;
-  topbarRight.insertBefore(select, connectBtn);
-}
-
-function createFooterDisclaimer(): void {
-  const app = document.getElementById('app')!;
-  const footer = document.createElement('footer');
-  footer.id = 'disclaimer';
-  footer.innerHTML = '\u672C\u9879\u76EE\u4EC5\u4F9B\u5B66\u4E60\u4EA4\u6D41\u4F7F\u7528\uFF0C\u8BF7\u9075\u5B88\u5F53\u5730\u6CD5\u5F8B\u6CD5\u89C4\u3002 <a href="https://github.com/0xNullAI/DG-Agent" target="_blank">GitHub</a>';
-  app.appendChild(footer);
+  // Save preference
+  localStorage.setItem('dg-agent-theme', next);
 }
 
 // -- Welcome message --
