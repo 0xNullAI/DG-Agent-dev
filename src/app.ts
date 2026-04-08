@@ -415,12 +415,28 @@ function renderSettingsConfig(providerId: string): void {
     input.placeholder = f.placeholder || '';
     input.value = values[f.key] || '';
     input.classList.add('provider-cfg-input');
-    input.addEventListener('change', saveSettings);
-
     group.appendChild(label);
     group.appendChild(input);
     container.appendChild(group);
   });
+
+  // Save button
+  const actions = document.createElement('div');
+  actions.className = 'modal-actions';
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn-primary';
+  saveBtn.textContent = '保存';
+  saveBtn.addEventListener('click', () => {
+    saveSettings();
+    saveBtn.textContent = '已保存 ✓';
+    saveBtn.classList.add('btn-saved');
+    setTimeout(() => {
+      saveBtn.textContent = '保存';
+      saveBtn.classList.remove('btn-saved');
+    }, 1500);
+  });
+  actions.appendChild(saveBtn);
+  container.appendChild(actions);
 }
 
 // ============================================================

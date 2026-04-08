@@ -983,6 +983,7 @@ html, body {
 }
 .btn-primary:hover { filter: brightness(1.08); }
 .btn-primary:active { transform: scale(0.97); }
+.btn-primary.btn-saved { background: #22c55e; pointer-events: none; }
 
 .btn-primary-sm {
   display: inline-flex;
