@@ -107,7 +107,7 @@ async function chatGemini(
   onStreamText: StreamTextHandler | undefined,
   config: Record<string, string>,
 ): Promise<ChatResponse> {
-  const model = config.model || 'gemini-2.0-flash';
+  const model = config.model || 'gemini-2.5-flash';
   const apiKey = config.apiKey;
   if (!apiKey) throw new Error('Gemini API key is required. Gemini offers free API keys at https://aistudio.google.com/apikey');
 

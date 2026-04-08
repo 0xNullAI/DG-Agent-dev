@@ -28,7 +28,7 @@ const PROVIDERS: ProviderDef[] = [
     hint: '免费 API Key → aistudio.google.com/apikey',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'AIza...' },
-      { key: 'model', label: '模型', type: 'text', placeholder: 'gemini-2.0-flash' },
+      { key: 'model', label: '模型', type: 'text', placeholder: 'gemini-2.5-flash' },
     ],
   },
   {
