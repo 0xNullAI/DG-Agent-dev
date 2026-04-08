@@ -4,94 +4,163 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <meta name="theme-color" content="#fff5f7" id="meta-theme">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>DG-Agent</title>
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
   <div id="app">
+    <!-- ===== Top bar ===== -->
     <header id="topbar">
       <div class="topbar-left">
+        <button id="btn-sidebar" class="icon-btn" title="历史记录" aria-label="历史记录">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M14 10h3"/><path d="M14 14h3"/></svg>
+        </button>
         <h1>DG-Agent</h1>
         <span id="device-status" class="status-dot disconnected"></span>
-        <span id="device-info"></span>
+      </div>
+      <div class="topbar-center">
+        <!-- Scene pill (dropdown trigger) -->
+        <button id="pill-scene" class="pill" title="切换场景模式">
+          <span id="pill-scene-icon">💕</span>
+          <span id="pill-scene-label">温柔调情</span>
+          <svg class="pill-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <!-- Provider pill (dropdown trigger) -->
+        <button id="pill-provider" class="pill pill-muted" title="切换 AI 服务">
+          <span id="pill-provider-label">Gemini</span>
+          <svg class="pill-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
       </div>
       <div class="topbar-right">
-        <select id="provider-quick" title="切换 AI 服务商">
-          <option value="gemini">Gemini</option>
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Claude</option>
-        </select>
-        <button id="btn-history" title="历史记录">📋</button>
-        <button id="btn-connect" title="连接设备">🔗</button>
-        <button id="btn-settings" title="设置">⚙️</button>
-        <button id="btn-theme" title="切换主题">🌙</button>
+        <button id="btn-connect" class="icon-btn" title="连接设备" aria-label="连接设备">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5v11h-11"/><path d="M2 12C2 6.5 6.5 2 12 2"/><path d="M22 12c0 5.5-4.5 10-10 10"/></svg>
+        </button>
+        <button id="btn-settings" class="icon-btn" title="API 设置" aria-label="设置">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button id="btn-theme" class="icon-btn" title="切换主题" aria-label="切换主题">
+          <svg id="icon-theme-dark" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg id="icon-theme-light" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
       </div>
     </header>
 
+    <!-- ===== Device status bar ===== -->
     <div id="device-bar" class="hidden">
       <div class="channel" id="channel-a">
-        <span>A通道</span>
+        <span class="channel-label">A</span>
         <span class="wave-indicator hidden" id="wave-a"></span>
         <div class="strength-bar"><div class="strength-fill" id="strength-a"></div></div>
         <span class="strength-value" id="strength-a-val">0</span>
       </div>
       <div class="channel" id="channel-b">
-        <span>B通道</span>
+        <span class="channel-label">B</span>
         <span class="wave-indicator hidden" id="wave-b"></span>
         <div class="strength-bar"><div class="strength-fill" id="strength-b"></div></div>
         <span class="strength-value" id="strength-b-val">0</span>
       </div>
-      <div class="battery" id="battery">🔋 --</div>
-    </div>
-
-    <div id="history-drawer" class="hidden">
-      <div class="drawer-header">
-        <h3>历史记录</h3>
-        <button id="btn-new-conv" class="btn-sm">新对话</button>
+      <div class="battery" id="battery">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="18" height="12" rx="2"/><path d="M23 10v4"/></svg>
+        <span id="battery-val">--</span>
       </div>
-      <div id="history-list"></div>
     </div>
 
-    <div id="chat-container">
-      <div id="messages"></div>
-    </div>
+    <!-- ===== Layout wrapper (sidebar + main) ===== -->
+    <div id="layout">
+      <!-- History sidebar (desktop: always visible toggle; mobile: overlay) -->
+      <aside id="sidebar" class="sidebar-closed">
+        <div class="sidebar-header">
+          <h2>历史记录</h2>
+          <button id="btn-new-conv" class="btn-primary-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            新对话
+          </button>
+        </div>
+        <div id="history-list" class="sidebar-list"></div>
+      </aside>
+      <div id="sidebar-overlay" class="hidden"></div>
 
-    <div id="input-area">
-      <textarea id="user-input" placeholder="输入消息..." rows="1"></textarea>
-      <button id="btn-send">发送</button>
+      <!-- Main chat area -->
+      <main id="main">
+        <div id="chat-container">
+          <div id="messages"></div>
+        </div>
+
+        <div id="input-area">
+          <textarea id="user-input" placeholder="输入消息…" rows="1"></textarea>
+          <button id="btn-send" title="发送" aria-label="发送">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </main>
     </div>
 
     <footer id="disclaimer">
       本项目仅供学习交流使用，请遵守当地法律法规。
-      <a href="https://github.com/0xNullAI/DG-Agent" target="_blank">GitHub</a>
+      <a href="https://github.com/0xNullAI/DG-Agent" target="_blank" rel="noopener">GitHub</a>
     </footer>
 
+    <!-- ===== Scene dropdown ===== -->
+    <div id="dropdown-scene" class="dropdown hidden">
+      <div class="dropdown-header">场景模式</div>
+      <div id="scene-list" class="dropdown-grid"></div>
+      <div class="dropdown-divider"></div>
+      <div id="custom-scene-section">
+        <button id="scene-custom-btn" class="dropdown-item full-width">
+          <span class="dropdown-item-icon">✏️</span>
+          <span>自定义人设</span>
+        </button>
+        <div id="custom-prompt-inline" class="hidden">
+          <textarea id="custom-system-prompt" rows="3" placeholder="描述你想要的 AI 人设和互动风格…"></textarea>
+          <div class="inline-actions">
+            <button id="btn-save-prompt" class="btn-primary-sm">保存</button>
+          </div>
+          <div id="saved-prompts-list" class="saved-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Provider dropdown ===== -->
+    <div id="dropdown-provider" class="dropdown hidden">
+      <div class="dropdown-header">AI 服务</div>
+      <div id="provider-list"></div>
+    </div>
+
+    <!-- ===== Settings modal (API keys only) ===== -->
     <div id="settings-modal" class="modal hidden">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>设置</h2>
-          <button class="modal-close" id="btn-close-settings">✕</button>
+          <h2>API 设置</h2>
+          <button class="modal-close" id="btn-close-settings" aria-label="关闭">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
         <div class="modal-body">
-          <h3>场景模式</h3>
-          <div id="preset-select"></div>
-          <div id="custom-prompt-area" class="hidden">
-            <div class="setting-group">
-              <label for="custom-system-prompt">自定义人设提示词</label>
-              <textarea id="custom-system-prompt" rows="4" placeholder="描述你想要的 AI 人设和互动风格..."></textarea>
-            </div>
-            <div id="saved-prompts-area">
-              <div class="saved-prompts-header">
-                <label>已保存的自定义人设</label>
-                <button id="btn-save-prompt" class="btn-sm">保存当前</button>
-              </div>
-              <div id="saved-prompts-list"></div>
-            </div>
-          </div>
-          <hr class="modal-divider">
-          <h3>AI 服务商</h3>
-          <div id="provider-select"></div>
+          <div id="settings-provider-tabs" class="provider-tabs"></div>
           <div id="provider-config"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Save prompt dialog ===== -->
+    <div id="save-prompt-dialog" class="modal hidden">
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h2>保存自定义人设</h2>
+          <button class="modal-close" id="btn-close-save-dialog" aria-label="关闭">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-group">
+            <label for="save-prompt-name">名称</label>
+            <input type="text" id="save-prompt-name" placeholder="给这个人设起个名字">
+          </div>
+          <div class="modal-actions">
+            <button id="btn-confirm-save-prompt" class="btn-primary">保存</button>
+          </div>
         </div>
       </div>
     </div>
