@@ -88,6 +88,14 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
   if (isProcessing || !callbacks) return;
   isProcessing = true;
 
+  // Remove all tool items from previous turns to save tokens
+  for (let i = conversationItems.length - 1; i >= 0; i--) {
+    const item = conversationItems[i] as any;
+    if (item.type === 'function_call' || item.type === 'function_call_output') {
+      conversationItems.splice(i, 1);
+    }
+  }
+
   callbacks.onUserMessage(text);
   conversationItems.push({ role: 'user', content: text });
 
