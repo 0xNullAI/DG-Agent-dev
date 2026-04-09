@@ -353,9 +353,20 @@ export function boot(): void {
     showWelcomeMessage();
   }
 
-  // Safety: clean up on page unload
-  window.addEventListener('beforeunload', () => {
-    try { bluetooth.stopWave(null); } catch (_) { /* */ }
+  // Safety: full stop on page unload (close tab / close browser)
+  function fullStop(): void {
+    if (bluetooth.state.connected) {
+      try { bluetooth.emergencyStop(); } catch (_) { /* */ }
+    }
+  }
+  window.addEventListener('beforeunload', fullStop);
+  window.addEventListener('pagehide', fullStop);
+
+  // Background / foreground lifecycle
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && settings.getBackgroundBehavior() === 'stop') {
+      fullStop();
+    }
   });
 
   // Emergency stop button
