@@ -146,29 +146,6 @@ export function addSystemMessage(text: string): void {
   scrollToBottom();
 }
 
-/** Update the active timers panel. Pass empty array to hide. */
-export function updateTimerPanel(timers: Array<{timer_id: number; label: string; action: string; repeat_done: number; repeat_total: number}>): void {
-  const list = document.getElementById('timers-list');
-  const cancelAllBtn = document.getElementById('btn-cancel-all-timers');
-  if (!list) return;
-
-  if (timers.length === 0) {
-    list.innerHTML = '<span class="timer-empty">无活跃定时器</span>';
-    cancelAllBtn?.classList.add('hidden');
-    return;
-  }
-
-  cancelAllBtn?.classList.remove('hidden');
-  list.innerHTML = timers.map(t => {
-    const progress = t.repeat_total > 1 ? `${t.repeat_done}/${t.repeat_total}` : '待执行';
-    return `<div class="timer-item" data-timer-id="${t.timer_id}">
-      <span class="timer-label">#${t.timer_id} ${t.label}</span>
-      <span class="timer-progress">${progress}</span>
-      <button class="timer-cancel-btn" data-timer-id="${t.timer_id}" title="取消">✕</button>
-    </div>`;
-  }).join('');
-}
-
 /** Scroll chat to bottom (respects user-scroll-up). */
 export function scrollToBottom(force = false): void {
   if (!chatContainer) return;
