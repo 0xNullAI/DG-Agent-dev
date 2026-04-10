@@ -283,9 +283,96 @@ async function executeOneCall(
 }
 
 function parseArgs(raw: string): Record<string, unknown> {
+  const s = raw || '{}';
   try {
-    return JSON.parse(raw || '{}');
+    return JSON.parse(s);
+  } catch {
+    // fall through to the light repair pass
+  }
+  try {
+    return JSON.parse(repairJson(s));
   } catch {
     return {};
   }
+}
+
+/**
+ * Minimal JSON repair for lightly-malformed tool-call arguments.
+ *
+ * Volcengine's Function Calling docs explicitly call out that the model may
+ * emit slightly-invalid JSON under pressure and recommend a repair pass
+ * before giving up. We deliberately keep this tiny (no external dependency,
+ * no regex explosion) and only cover the three failure modes we've actually
+ * seen: trailing commas, unclosed brackets/braces, and raw newlines inside
+ * string literals. If a payload is corrupt in more exotic ways the caller
+ * still falls back to {} and the tool returns an error upstream.
+ */
+function repairJson(raw: string): string {
+  // Walk the string once, tracking context (in-string, escape, bracket stack),
+  // and emit a cleaned copy. We cannot do any of this with a blanket regex
+  // because commas and brackets inside string literals are legal.
+  const stack: string[] = [];
+  let out = '';
+  let inStr = false;
+  let escape = false;
+
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+
+    if (inStr) {
+      if (escape) {
+        out += c;
+        escape = false;
+        continue;
+      }
+      if (c === '\\') {
+        out += c;
+        escape = true;
+        continue;
+      }
+      if (c === '"') {
+        out += c;
+        inStr = false;
+        continue;
+      }
+      // Raw control chars inside strings are illegal in JSON; escape them.
+      if (c === '\n') { out += '\\n'; continue; }
+      if (c === '\r') { out += '\\r'; continue; }
+      if (c === '\t') { out += '\\t'; continue; }
+      out += c;
+      continue;
+    }
+
+    if (c === '"') {
+      out += c;
+      inStr = true;
+      continue;
+    }
+    if (c === '{' || c === '[') {
+      stack.push(c);
+      out += c;
+      continue;
+    }
+    if (c === '}' || c === ']') {
+      // Drop trailing commas that immediately precede a closer: find the
+      // last non-whitespace char in the output and strip it if it's ','.
+      let j = out.length - 1;
+      while (j >= 0 && /\s/.test(out[j])) j--;
+      if (j >= 0 && out[j] === ',') out = out.slice(0, j) + out.slice(j + 1);
+      stack.pop();
+      out += c;
+      continue;
+    }
+    out += c;
+  }
+
+  // Close any still-open string, then any still-open containers in
+  // reverse order. An unterminated string gets a closing quote, which
+  // is usually enough to rescue a truncated final argument value.
+  if (inStr) out += '"';
+  while (stack.length) {
+    const open = stack.pop();
+    out += open === '{' ? '}' : ']';
+  }
+  return out;
 }

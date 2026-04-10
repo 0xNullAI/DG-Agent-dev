@@ -23,6 +23,9 @@ export interface TransportConfig {
   apiKey: string;
   model: string;
   providerId: string;
+  /** Whether to emit strict-mode tool schemas. True for all providers except
+   *  a custom one whose user explicitly turned strict off. */
+  useStrict: boolean;
 }
 
 export function resolveProviderConfig(): TransportConfig {
@@ -45,7 +48,15 @@ export function resolveProviderConfig(): TransportConfig {
   } else if (providerId === 'openai') {
     baseUrl = baseUrl || 'https://api.openai.com/v1';
     model = model || 'gpt-5.3';
+  } else if (providerId === 'doubao') {
+    baseUrl = 'https://ark.cn-beijing.volces.com/api/v3';
+    model = model || 'doubao-seed-2.0-mini';
   }
+
+  // Strict mode is on by default everywhere. Only the custom provider lets
+  // the user opt out, because custom backends may be OpenAI-compatible shims
+  // that reject `strict`, `additionalProperties:false`, or nullable unions.
+  const useStrict = providerId === 'custom' ? raw.useStrict !== 'false' : true;
 
   return {
     baseUrl: baseUrl.replace(/\/+$/, ''),
@@ -55,6 +66,7 @@ export function resolveProviderConfig(): TransportConfig {
     // this in; this only matters for misconfigured 'custom' setups.
     model: model || 'gpt-5.3',
     providerId,
+    useStrict,
   };
 }
 
@@ -62,14 +74,97 @@ export function resolveProviderConfig(): TransportConfig {
 // Tool schema mapping
 // ---------------------------------------------------------------------------
 
-function toResponsesTools(tools: ToolDef[]): any[] | undefined {
+/**
+ * JSON Schema keywords that strict-mode Responses-API providers (OpenAI, Ark)
+ * refuse. They're descriptive hints to the human author and get stripped
+ * before the schema leaves this module. Handlers in tools.ts already enforce
+ * the real numeric bounds (see `clamp`), so removing them from the wire
+ * schema does not weaken runtime safety — it only removes a soft hint for
+ * the model, which we compensate for by putting the range back into each
+ * field's description text.
+ */
+const STRIP_KEYS = new Set([
+  'default',
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'exclusiveMaximum',
+  'multipleOf',
+  'minLength',
+  'maxLength',
+  'pattern',
+  'format',
+  'minItems',
+  'maxItems',
+  'uniqueItems',
+]);
+
+/**
+ * Produce a strict-mode-compatible copy of a JSON Schema fragment.
+ *
+ * The transform is recursive and idempotent:
+ *   - every `type:"object"` gets `additionalProperties: false`
+ *   - every property not already in `required` is added to `required` and
+ *     its type is unioned with `"null"` (so the model can explicitly pass
+ *     null for what was an optional field)
+ *   - unsupported keywords (see STRIP_KEYS) are dropped
+ *
+ * Never mutates the input — returns fresh objects/arrays. This lets
+ * tools.ts keep a human-readable "loose" schema as the source of truth
+ * and we only synthesize the strict form at HTTP-body build time.
+ */
+function strictify(node: any): any {
+  if (Array.isArray(node)) return node.map(strictify);
+  if (node === null || typeof node !== 'object') return node;
+
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(node)) {
+    if (STRIP_KEYS.has(k)) continue;
+    out[k] = strictify(v);
+  }
+
+  if (out.type === 'object' && out.properties && typeof out.properties === 'object') {
+    const propKeys = Object.keys(out.properties);
+    const originalRequired = new Set<string>(Array.isArray(out.required) ? out.required : []);
+    // Every property must be listed in `required` under strict mode; fields
+    // that were optional get their type widened to allow null so the model
+    // has a way to say "not provided".
+    out.required = propKeys;
+    out.additionalProperties = false;
+    for (const key of propKeys) {
+      if (!originalRequired.has(key)) {
+        out.properties[key] = widenWithNull(out.properties[key]);
+      }
+    }
+  }
+  return out;
+}
+
+/** Union a schema fragment's `type` with "null". Leaves untyped fragments alone. */
+function widenWithNull(schema: any): any {
+  if (!schema || typeof schema !== 'object') return schema;
+  const t = schema.type;
+  if (t == null) return schema;
+  if (Array.isArray(t)) {
+    return t.includes('null') ? schema : { ...schema, type: [...t, 'null'] };
+  }
+  if (t === 'null') return schema;
+  return { ...schema, type: [t, 'null'] };
+}
+
+function toResponsesTools(tools: ToolDef[], useStrict: boolean): any[] | undefined {
   if (!tools || tools.length === 0) return undefined;
-  return tools.map((t) => ({
-    type: 'function',
-    name: t.name,
-    description: t.description,
-    parameters: t.parameters,
-  }));
+  return tools.map((t) => {
+    const parameters = useStrict ? strictify(t.parameters) : t.parameters;
+    const base: Record<string, any> = {
+      type: 'function',
+      name: t.name,
+      description: t.description,
+      parameters,
+    };
+    if (useStrict) base.strict = true;
+    return base;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -100,8 +195,15 @@ export async function callResponses(
     temperature: 0.7,
     instructions,
   };
-  const rTools = toResponsesTools(tools);
-  if (rTools) body.tools = rTools;
+  const rTools = toResponsesTools(tools, config.useStrict);
+  if (rTools) {
+    body.tools = rTools;
+    // Explicitly surface the defaults the Volcengine Function Calling docs
+    // recommend specifying. Values match the API defaults so behavior is
+    // unchanged — this is purely for reproducibility / audit.
+    body.tool_choice = 'auto';
+    body.parallel_tool_calls = true;
+  }
   if (onTextDelta) body.stream = true;
 
   const res = await fetch(`${config.baseUrl}/responses`, {

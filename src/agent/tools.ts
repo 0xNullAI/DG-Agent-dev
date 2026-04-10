@@ -91,13 +91,13 @@ const registry: ToolEntry[] = [
             type: 'integer',
             minimum: 10,
             maximum: 1000,
-            description: '自定义频率(ms)，必须与 intensity 同时提供，且不能与 preset 同用。',
+            description: '自定义频率(ms)，范围 10-1000，必须与 intensity 同时提供，且不能与 preset 同用。',
           },
           intensity: {
             type: 'integer',
             minimum: 0,
             maximum: 100,
-            description: '自定义波形内部能量百分比(0-100)，必须与 frequency 同时提供。注意：这不是 strength！',
+            description: '自定义波形内部能量百分比，范围 0-100，必须与 frequency 同时提供。注意：这不是 strength！',
           },
           duration_frames: {
             type: 'integer',
@@ -214,8 +214,8 @@ const registry: ToolEntry[] = [
             items: {
               type: 'object',
               properties: {
-                freq: { type: 'integer', minimum: 10, maximum: 1000, description: '这一步的频率(ms)' },
-                intensity: { type: 'integer', minimum: 0, maximum: 100, description: '这一步的波形能量百分比 0-100' },
+                freq: { type: 'integer', minimum: 10, maximum: 1000, description: '这一步的频率(ms)，范围 10-1000' },
+                intensity: { type: 'integer', minimum: 0, maximum: 100, description: '这一步的波形能量百分比，范围 0-100' },
                 repeat: { type: 'integer', minimum: 1, default: 1, description: '这一步重复几帧（每帧 100ms）' },
               },
               required: ['freq', 'intensity'],
@@ -258,8 +258,8 @@ const registry: ToolEntry[] = [
       parameters: {
         type: 'object',
         properties: {
-          limit_a: { type: 'integer', minimum: 0, maximum: 200, description: 'A 通道强度上限 0-200' },
-          limit_b: { type: 'integer', minimum: 0, maximum: 200, description: 'B 通道强度上限 0-200' },
+          limit_a: { type: 'integer', minimum: 0, maximum: 200, description: 'A 通道强度上限，范围 0-200' },
+          limit_b: { type: 'integer', minimum: 0, maximum: 200, description: 'B 通道强度上限，范围 0-200' },
         },
         required: ['limit_a', 'limit_b'],
       },

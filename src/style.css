@@ -1352,6 +1352,11 @@ html, body {
   .provider-tab {
     flex: 0 0 calc(50% - 2px);
   }
+  /* First tab (免费体验) takes the whole first row; the remaining 4 wrap
+     into a 2×2 grid underneath. */
+  .provider-tab:first-child {
+    flex: 0 0 100%;
+  }
 
   .icon-btn { width: 34px; height: 34px; }
 

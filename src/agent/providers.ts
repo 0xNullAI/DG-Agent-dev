@@ -46,6 +46,15 @@ export const PROVIDERS: ProviderDef[] = [
     ],
   },
   {
+    id: 'doubao',
+    name: '豆包',
+    hint: '火山方舟 Responses API。model 填 Endpoint ID（如 ep-xxx）或模型 ID（如 doubao-seed-2.0-mini）。',
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'ARK API Key' },
+      { key: 'model', label: '模型 / Endpoint ID', type: 'text', placeholder: 'doubao-seed-2.0-mini' },
+    ],
+  },
+  {
     id: 'custom',
     name: '自定义',
     hint: '自定义模型、API Key 和接口地址',
@@ -53,6 +62,16 @@ export const PROVIDERS: ProviderDef[] = [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
       { key: 'model', label: '模型', type: 'text', placeholder: 'model-name' },
       { key: 'baseUrl', label: 'Base URL', type: 'url', placeholder: 'https://api.example.com/v1' },
+      {
+        key: 'useStrict',
+        label: 'strict 模式',
+        type: 'select',
+        default: 'true',
+        options: [
+          { value: 'true', label: '开启（OpenAI 兼容后端推荐）' },
+          { value: 'false', label: '关闭（后端不兼容时选此）' },
+        ],
+      },
     ],
   },
 ];
