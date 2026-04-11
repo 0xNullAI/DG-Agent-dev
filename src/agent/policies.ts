@@ -44,7 +44,6 @@ const MUTATING_TOOLS = new Set<string>([
   'stop',
   'adjust_strength',
   'change_wave',
-  'design_wave',
   'burst',
 ]);
 
