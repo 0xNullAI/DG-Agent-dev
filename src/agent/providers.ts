@@ -14,19 +14,8 @@ export const PROVIDERS: ProviderDef[] = [
   {
     id: 'free',
     name: '免费体验',
-    hint: '无需 API Key，每分钟限 10 条。请根据所在地区选择线路。',
-    fields: [
-      {
-        key: 'region',
-        label: '代理线路',
-        type: 'select',
-        default: 'cn',
-        options: [
-          { value: 'cn', label: '阿里云' },
-          { value: 'intl', label: 'Cloudflare' },
-        ],
-      },
-    ],
+    hint: '无需 API Key，每分钟限 10 条。使用阿里云线路。',
+    fields: [],
   },
   {
     id: 'qwen',

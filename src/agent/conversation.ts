@@ -264,12 +264,13 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
   try {
     const finalItems = await runTurn({
       conversationItems: store.items,
-      buildInstructions: (deviceStatus, isFirstIteration) =>
+      buildInstructions: (deviceStatus, isFirstIteration, turnToolCalls) =>
         buildInstructions({
           presetId: store.activePresetId,
           customPrompt,
           deviceStatus,
           isFirstIteration,
+          turnToolCalls,
         }),
       getDeviceStatus: bt.getStatus,
       tools,

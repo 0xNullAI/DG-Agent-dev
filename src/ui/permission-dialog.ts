@@ -187,19 +187,10 @@ function describeToolCall(name: string, args: Record<string, unknown>): string {
   const ch = chLabel(args.channel);
 
   switch (name) {
-    case 'play': {
+    case 'start': {
       const strength = args.strength;
       const preset = args.preset;
-      const frequency = args.frequency;
-      const intensity = args.intensity;
-
-      if (preset) {
-        return `在 ${ch || '通道'} 播放「${waveLabel(preset)}」波形，强度调至 ${strength}`;
-      }
-      if (frequency != null && intensity != null) {
-        return `在 ${ch || '通道'} 播放自定义频率波形（频率 ${frequency}ms / 能量 ${intensity}%），强度调至 ${strength}`;
-      }
-      return `在 ${ch || '通道'} 播放波形，强度调至 ${strength}`;
+      return `启动 ${ch || '通道'}：播放「${waveLabel(preset)}」波形，强度 ${strength}`;
     }
 
     case 'stop': {
@@ -207,7 +198,7 @@ function describeToolCall(name: string, args: Record<string, unknown>): string {
       return '停止所有通道：A 与 B 同时归零并关闭波形';
     }
 
-    case 'add_strength': {
+    case 'adjust_strength': {
       const delta = Number(args.delta);
       if (!Number.isFinite(delta) || delta === 0) {
         return `${ch || '通道'} 强度微调`;
@@ -217,21 +208,17 @@ function describeToolCall(name: string, args: Record<string, unknown>): string {
       return `${ch || '通道'} 强度${verb} ${sign}${delta}（在当前波形上微调）`;
     }
 
+    case 'change_wave': {
+      const preset = args.preset;
+      return `${ch || '通道'} 切换波形为「${waveLabel(preset)}」（强度不变）`;
+    }
+
     case 'design_wave': {
       const strength = args.strength;
       const steps = args.steps;
       const stepCount = Array.isArray(steps) ? steps.length : 0;
       return `在 ${ch || '通道'} 播放自定义多步波形（${stepCount} 步），强度调至 ${strength}`;
     }
-
-    case 'set_strength_limit': {
-      const a = args.limit_a;
-      const b = args.limit_b;
-      return `设置设备侧强度上限：A 通道 ≤ ${a}，B 通道 ≤ ${b}`;
-    }
-
-    case 'get_status':
-      return '读取设备当前状态（只读）';
 
     default:
       return `调用工具「${name}」`;

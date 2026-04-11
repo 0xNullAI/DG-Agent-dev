@@ -16,7 +16,8 @@
 
 import type { DeviceState, PromptPreset } from '../types';
 import { tools } from './tools';
-import { MAX_ADD_STRENGTH_PER_TURN } from './policies';
+import { MAX_ADJUST_STRENGTH_PER_TURN } from './policies';
+import { getMaxStrength } from './providers';
 
 // ---------------------------------------------------------------------------
 // Persona presets
@@ -90,7 +91,7 @@ export const PROMPT_PRESETS: PromptPreset[] = [
     prompt: `你是一个极其擅长节奏控制的引导者，专精于边缘控制(Edging)的艺术。你的风格是：
 
 - 核心技巧是"攀升-暂停-回落-再攀升"的循环，每次都推得更近一些
-- 对强度的调控极其精细，善用 add_strength 做微调（+2、+3的细微变化）
+- 对强度的调控极其精细，善用 adjust_strength 做微调（+2、+3的细微变化）
 - 波形选择讲究层次：初期用breath/tide铺垫，中期用pulse_mid推进，高潮前用design_wave自定义渐强曲线
 - 善于用语言引导对方关注身体感受："感受那一阵一阵的脉冲……慢慢来，不要急……"
 - 在关键节点突然降低或停止，享受那种"被拉回来"的落差感，然后从更高的起点重新开始
@@ -141,34 +142,45 @@ ${TOOL_CATALOG}
 
 设备参数：
   • A / B 双通道独立控制
-  • 强度范围 0–200，新手从 5–15 起步，按反馈逐步增加
+  • 协议层强度范围 0–200，新手从 5–15 起步，按反馈逐步增加
+  • 真实可请求范围由用户在 App 内设置的安全上限决定，**永远以下面"系统观察"块里"最高可请求"显示的值为准**——超过那个数会被自动夹紧到那个数，并在工具回执的 limited:true 字段告知你
+  • 你没有任何工具可以修改这个上限，它只能由用户在 App 内调整
   • 波形预设：breath（呼吸/最柔）、tide（潮汐）、pulse_low/mid/high（低/中/高脉冲）、tap（轻拍）
-  • 用户在 App 内设置的安全上限会自动夹紧，无法绕过
-  • 关闭设备只能用 stop；不要用 play(strength=0) 变通
+  • 关闭设备只能用 stop；不要用 start(strength=0) 变通
+  • 状态机心智：通道在「停止」状态时用 start 启动；通道在「运行」状态时，调强度用 adjust_strength、换波形用 change_wave，不要重复调 start
 
 调用纪律：
   1. 要做就先调工具再说话。不要在文字里写"已经/帮你/为你..."却没真的调用工具——说了不等于做了
-  2. 拿到工具结果后，请根据返回的 deviceState 回复用户，不要编造或想象设备状态
-  3. 工具返回错误时如实告诉用户，不要假装成功
-  4. 同一回合内 add_strength 最多调用 ${MAX_ADD_STRENGTH_PER_TURN} 次；达到上限后本回合不要再继续爬升强度，直接回复用户即可
-  5. 当前设备状态已在下方"系统观察"块里提供，直接读取即可；只有当你怀疑它过期时才调 get_status，不要习惯性地"再确认一下"
+  2. 当前设备状态已在下方"系统观察"块里提供（每次响应前由系统刷新），直接读取即可，不存在"过期"的可能；你没有任何"查询状态"的工具，也不需要——只管用就是
+  3. 拿到工具结果后，请根据返回的 deviceState 回复用户，不要编造或想象设备状态
+  4. 工具返回错误时如实告诉用户，不要假装成功
+  5. 同一回合内 adjust_strength 最多调用 ${MAX_ADJUST_STRENGTH_PER_TURN} 次；达到上限后本回合不要再继续爬升强度，直接回复用户即可
   6. 拿到工具结果后请直接给出最终回复，不要为了"再确认一下"反复调用同一个工具
   7. 如果工具返回 "用户拒绝了本次工具调用"，说明用户在弹窗里点了拒绝：不要立即用相同参数重试，也不要在回复里假装已经执行；改为询问用户意愿或给出文字建议`;
 
 const FIRST_ITERATION_STRATEGY = `[本回合策略 — 仅本回合首次响应生效]
   - 涉及设备操作（开始、调整、停止刺激等）时，必须先调用对应工具再生成文字回复——"说了不等于做了"
-  - 只是闲聊、问答或给建议时，直接生成文字回复即可，不需要为了凑数去调 get_status：当前设备状态已经在上方"系统观察"块里提供
-  - 任何工具调用结束后请立即给出最终回复，不要反复调 get_status 或同一个工具来"再确认一下"`;
+  - 只是闲聊、问答或给建议时，直接生成文字回复即可：当前设备状态已经在上方"系统观察"块里提供，不需要任何工具去"查一下"
+  - 任何工具调用结束后请立即给出最终回复，不要反复调用同一个工具来"再确认一下"`;
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
+
+/** One tool call already executed in the current turn. */
+export interface TurnToolCall {
+  name: string;
+  /** Raw JSON args string from the model — small enough to inline verbatim. */
+  argsJson: string;
+}
 
 export interface BuildInstructionsOptions {
   presetId: string;
   customPrompt?: string;
   deviceStatus: DeviceState;
   isFirstIteration: boolean;
+  /** Tool calls already made earlier in this same user turn. Empty on iter 0. */
+  turnToolCalls: readonly TurnToolCall[];
 }
 
 /**
@@ -178,10 +190,12 @@ export interface BuildInstructionsOptions {
 export function buildInstructions(opts: BuildInstructionsOptions): string {
   const persona = resolvePersona(opts.presetId, opts.customPrompt);
   const statusBlock = buildDeviceStatusBlock(opts.deviceStatus);
+  const turnUsageBlock = buildTurnToolUsageBlock(opts.turnToolCalls);
   const blocks = [
     persona,
     DEVICE_REFERENCE_BLOCK,
     statusBlock,
+    turnUsageBlock,
   ];
   if (opts.isFirstIteration) {
     blocks.push(FIRST_ITERATION_STRATEGY);
@@ -197,16 +211,51 @@ function resolvePersona(presetId: string, customPrompt?: string): string {
   return (preset || PROMPT_PRESETS[0]).prompt;
 }
 
+/**
+ * Render the list of tool calls already executed earlier in this turn so the
+ * model sees its own action history as ground truth before generating a
+ * reply. This is the structural anti-hallucination mechanism: instead of
+ * filtering the model's output for forbidden phrases after the fact, we make
+ * the relevant facts impossible to miss at generation time. If the list is
+ * empty, the model is told explicitly that it has done nothing this turn —
+ * any "已经/帮你/我把..." in the upcoming reply would be a lie about state
+ * the model itself can verify.
+ */
+function buildTurnToolUsageBlock(calls: readonly TurnToolCall[]): string {
+  if (calls.length === 0) {
+    return (
+      `[本回合工具调用记录 — 系统观察，每次响应前由系统注入]\n` +
+      `本回合你尚未调用任何工具。\n` +
+      `这意味着设备从你接到本轮用户消息开始就没有被你动过。如果你打算在回复里写"已经/帮你/我把...增加/调到/换成..."等表示设备操作已完成的措辞，请先调用对应工具——否则那就是在对用户撒谎。如果只是想表达建议，请改用未完成态："我可以...","要不要..."。`
+    );
+  }
+  const lines = calls.map((c, i) => `  ${i + 1}. ${c.name}(${c.argsJson})`).join('\n');
+  return (
+    `[本回合工具调用记录 — 系统观察，每次响应前由系统注入]\n` +
+    `本回合你已经调用过以下工具（共 ${calls.length} 次，按调用顺序）：\n` +
+    `${lines}\n` +
+    `除上述之外你没有动过设备。生成回复前请对照此清单：你打算告诉用户的"已完成"动作必须能在上面找到对应的工具调用，否则就是幻觉。`
+  );
+}
+
 function buildDeviceStatusBlock(s: DeviceState): string {
   const conn = s.connected
     ? `已连接${s.deviceName ? `（${s.deviceName}）` : ''}`
     : '未连接';
   const battery = s.battery != null ? `${s.battery}%` : '未知';
+  // Effective ceiling = min(device-side BF limit, App-side user cap).
+  // The user cap is the hard ceiling — even if the device-side limit is
+  // higher, every write is clamped to this in tools.ts:clamp(). Showing it
+  // here lets the model plan within the actually-achievable range instead
+  // of repeatedly requesting values that get silently clamped.
+  const capA = Math.min(s.limitA, getMaxStrength('A'));
+  const capB = Math.min(s.limitB, getMaxStrength('B'));
   return (
     `[当前设备状态 — 系统观察，每次响应前由系统注入]\n` +
     `  • 连接：${conn}\n` +
     `  • 电量：${battery}\n` +
-    `  • A 通道：强度 ${s.strengthA}/${s.limitA}，波形${s.waveActiveA ? '活跃' : '停止'}\n` +
-    `  • B 通道：强度 ${s.strengthB}/${s.limitB}，波形${s.waveActiveB ? '活跃' : '停止'}`
+    `  • A 通道：强度 ${s.strengthA}（最高可请求 ${capA}），波形${s.waveActiveA ? '活跃' : '停止'}\n` +
+    `  • B 通道：强度 ${s.strengthB}（最高可请求 ${capB}），波形${s.waveActiveB ? '活跃' : '停止'}\n` +
+    `  • 强度上限由用户在 App 内设置，超过会被自动夹紧到上述值，无法绕过`
   );
 }

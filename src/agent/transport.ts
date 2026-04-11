@@ -11,8 +11,7 @@
 import type { ConversationItem, ToolDef } from '../types';
 import { loadSettings } from './providers';
 
-const FREE_PROXY_URL    = 'https://dg-agent-proxy.0xnullai.workers.dev';
-const FREE_PROXY_URL_CN = 'https://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
+const FREE_PROXY_URL = 'https://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
 
 // ---------------------------------------------------------------------------
 // Provider config resolution
@@ -38,8 +37,7 @@ export function resolveProviderConfig(): TransportConfig {
   let model = raw.model || '';
 
   if (providerId === 'free') {
-    const region = raw.region || 'cn';
-    baseUrl = region === 'intl' ? FREE_PROXY_URL : FREE_PROXY_URL_CN;
+    baseUrl = FREE_PROXY_URL;
     apiKey = 'free';
     model = 'qwen3.5-flash';
   } else if (providerId === 'qwen') {
@@ -187,6 +185,15 @@ export async function callResponses(
   signal?: AbortSignal,
 ): Promise<ResponsesCallResult> {
   if (!config.apiKey) throw new Error('API key is required');
+  // fetch() rejects header values containing non ISO-8859-1 code points with a
+  // confusing low-level error. Catch the common case (user pasted a key with
+  // CJK chars, full-width spaces, smart quotes, or zero-width chars) here and
+  // surface a message that points at the real cause.
+  if (!/^[\x20-\x7E]+$/.test(config.apiKey)) {
+    throw new Error(
+      'API key 含有非法字符（可能混入了中文、全角空格或不可见字符）。请在设置中重新粘贴一次纯英文/数字的 key。',
+    );
+  }
 
   const body: Record<string, any> = {
     model: config.model,

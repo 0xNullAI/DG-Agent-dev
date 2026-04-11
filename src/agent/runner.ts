@@ -5,27 +5,23 @@
  *   - Iterates LLM calls until the model produces a final assistant text
  *   - Executes tool calls between iterations (after the permission gate)
  *   - Enforces all per-turn hard caps from `policies.ts`
- *   - Runs the hallucination guard on candidate final replies
  *   - Streams text + tool events through the AgentSink
  *
  * The runner owns one piece of state (`RunnerState`) that lives only for the
  * duration of one `runTurn` call. Nothing leaks out except assistant text —
- * tool calls, tool outputs, and hallucination-correction notes stay inside
- * the runner. When the "narrate then act" pattern is used (the model streams
- * text before calling a tool) those narration lines ARE returned so the
- * persisted chat history matches what the user actually saw on screen.
+ * tool calls and tool outputs stay inside the runner. When the "narrate then
+ * act" pattern is used (the model streams text before calling a tool) those
+ * narration lines ARE returned so the persisted chat history matches what
+ * the user actually saw on screen.
  */
 
 import type { AgentSink, ConversationItem, DeviceState, ToolDef } from '../types';
 import {
   MAX_TOOL_ITERATIONS,
   MAX_TOOL_CALLS_PER_TURN,
-  MAX_ADD_STRENGTH_PER_TURN,
-  MAX_HALLUCINATION_CORRECTIONS_PER_TURN,
-  isMutatingTool,
-  detectHallucination,
-  buildHallucinationCorrectionNote,
+  MAX_ADJUST_STRENGTH_PER_TURN,
 } from './policies';
+import type { TurnToolCall } from './prompts';
 import { callResponses, type TransportConfig } from './transport';
 
 // ---------------------------------------------------------------------------
@@ -35,8 +31,18 @@ import { callResponses, type TransportConfig } from './transport';
 export interface RunTurnInput {
   /** The pristine conversation history (user/assistant text only). */
   conversationItems: readonly ConversationItem[];
-  /** Builds the system instructions for one iteration. Called every iter. */
-  buildInstructions: (deviceStatus: DeviceState, isFirstIteration: boolean) => string;
+  /**
+   * Builds the system instructions for one iteration. Called every iter.
+   * The third arg is the list of tool calls already executed earlier in
+   * this same turn — empty on the first iteration, populated thereafter.
+   * The prompt builder uses this to inject a "what you've done so far"
+   * block so the model cannot hallucinate device actions it never took.
+   */
+  buildInstructions: (
+    deviceStatus: DeviceState,
+    isFirstIteration: boolean,
+    turnToolCalls: readonly TurnToolCall[],
+  ) => string;
   /** Reads the latest device status. Called every iter so the LLM sees fresh state. */
   getDeviceStatus: () => DeviceState;
   /** Tool schemas for the LLM. */
@@ -72,36 +78,45 @@ function throwIfAborted(signal?: AbortSignal): void {
 // ---------------------------------------------------------------------------
 
 interface RunnerState {
-  /** Items appended during this turn (tool calls, outputs, correction notes). */
+  /** Items appended during this turn (tool calls, outputs). */
   workingItems: ConversationItem[];
   /** Total tool calls so far this turn (any tool). */
   totalToolCalls: number;
-  /** add_strength calls so far this turn. */
-  addStrengthCalls: number;
-  /** True if any tool was called (incl. get_status). */
-  anyToolCalled: boolean;
-  /** True if a *mutating* tool was called this turn. */
-  mutatingToolCalled: boolean;
-  /** Number of hallucination corrections already issued this turn. */
-  correctionsUsed: number;
+  /** adjust_strength calls so far this turn. */
+  adjustStrengthCalls: number;
 }
 
 function newState(): RunnerState {
   return {
     workingItems: [],
     totalToolCalls: 0,
-    addStrengthCalls: 0,
-    anyToolCalled: false,
-    mutatingToolCalled: false,
-    correctionsUsed: 0,
+    adjustStrengthCalls: 0,
   };
 }
 
 /**
+ * Project workingItems into the compact form the prompt builder needs:
+ * one entry per executed tool call, in chronological order, carrying just
+ * the name and the raw args JSON string. Tool outputs and narration items
+ * are skipped — the model only needs to know what it *did*, not the result
+ * payloads (those are still in the conversation input via the function_call
+ * / function_call_output pairs).
+ */
+function collectTurnToolCalls(state: RunnerState): TurnToolCall[] {
+  const out: TurnToolCall[] = [];
+  for (const it of state.workingItems) {
+    if ((it as any).type === 'function_call') {
+      const fc = it as any;
+      out.push({ name: fc.name, argsJson: fc.arguments || '{}' });
+    }
+  }
+  return out;
+}
+
+/**
  * Pick out every assistant narration line accumulated during the turn.
- * workingItems also contains function_call / function_call_output items
- * and the synthetic user notes used by the hallucination corrector —
- * neither belongs in the persisted chat history.
+ * workingItems also contains function_call / function_call_output items —
+ * those don't belong in the persisted chat history.
  */
 function collectNarrations(state: RunnerState): ConversationItem[] {
   return state.workingItems.filter((it): it is ConversationItem =>
@@ -127,7 +142,8 @@ export async function runTurn(input: RunTurnInput): Promise<ConversationItem[]> 
     throwIfAborted(input.signal);
 
     const deviceStatus = input.getDeviceStatus();
-    const instructions = input.buildInstructions(deviceStatus, iter === 0);
+    const turnToolCalls = collectTurnToolCalls(state);
+    const instructions = input.buildInstructions(deviceStatus, iter === 0, turnToolCalls);
     const llmInput: ConversationItem[] = [
       ...input.conversationItems,
       ...state.workingItems,
@@ -149,23 +165,9 @@ export async function runTurn(input: RunTurnInput): Promise<ConversationItem[]> 
       continue;
     }
 
-    // No tool calls — this is a candidate final answer.
-    const verdict = detectHallucination(streamedText, state);
-    if (verdict && state.correctionsUsed < MAX_HALLUCINATION_CORRECTIONS_PER_TURN) {
-      state.correctionsUsed++;
-      console.warn(
-        `[runner] Hallucination guard triggered (${verdict.kind}): "${verdict.matched}". Discarding reply and re-prompting.`,
-      );
-      input.sink.onTextDiscard();
-      state.workingItems.push({
-        role: 'user',
-        content: buildHallucinationCorrectionNote(verdict.kind),
-      });
-      continue;
-    }
-
-    // Accept the reply. Lock the bubble and return every assistant message
-    // produced this turn — the "narrate then act" lines plus the final text.
+    // No tool calls — accept the reply. Lock the bubble and return every
+    // assistant message produced this turn — the "narrate then act" lines
+    // plus the final text.
     input.sink.onTextComplete();
     return [
       ...collectNarrations(state),
@@ -241,10 +243,10 @@ async function executeOneCall(
     });
   }
 
-  // Hard cap: add_strength per turn
-  if (name === 'add_strength' && state.addStrengthCalls >= MAX_ADD_STRENGTH_PER_TURN) {
+  // Hard cap: adjust_strength per turn
+  if (name === 'adjust_strength' && state.adjustStrengthCalls >= MAX_ADJUST_STRENGTH_PER_TURN) {
     return JSON.stringify({
-      error: `add_strength 本回合调用已达上限 (${MAX_ADD_STRENGTH_PER_TURN} 次)，本次调用被拒绝。本回合已经调整过足够多次了，请直接回复用户，不要再继续爬升强度。`,
+      error: `adjust_strength 本回合调用已达上限 (${MAX_ADJUST_STRENGTH_PER_TURN} 次)，本次调用被拒绝。本回合已经调整过足够多次了，请直接回复用户，不要再继续爬升强度。`,
     });
   }
 
@@ -257,14 +259,9 @@ async function executeOneCall(
 
   // Always count attempted calls against the per-turn caps — a denied or
   // failed call still burns a slot, so the model can't spam-retry to bypass
-  // MAX_TOOL_CALLS_PER_TURN. `mutatingToolCalled`, however, tracks whether
-  // the *device* was actually mutated this turn: denies leave it false so
-  // the action-claim hallucination guard still fires if the model claims
-  // success after a denial.
+  // MAX_TOOL_CALLS_PER_TURN.
   state.totalToolCalls++;
-  state.anyToolCalled = true;
-  if (!permissionDenied && isMutatingTool(name)) state.mutatingToolCalled = true;
-  if (name === 'add_strength') state.addStrengthCalls++;
+  if (name === 'adjust_strength') state.adjustStrengthCalls++;
 
   if (permissionDenied) {
     return JSON.stringify({

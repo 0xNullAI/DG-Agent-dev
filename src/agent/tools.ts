@@ -6,7 +6,7 @@
 import type { ToolDef, WaveStep } from '../types';
 import * as bt from './bluetooth';
 import { getMaxStrength } from './providers';
-import { clampStrengthLimit, isMutatingTool } from './policies';
+import { MAX_START_STRENGTH } from './policies';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -35,13 +35,6 @@ function num(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? Math.round(n) : fallback;
 }
 
-/** Coerce optional numeric input — preserves null/undefined, otherwise to number. */
-function numOrNull(v: unknown): number | null {
-  if (v == null) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.round(n) : null;
-}
-
 // ---------------------------------------------------------------------------
 // Tool registry — definition + handler in one place
 // ---------------------------------------------------------------------------
@@ -54,17 +47,18 @@ interface ToolEntry {
 const registry: ToolEntry[] = [
   {
     def: {
-      name: 'play',
+      name: 'start',
       description:
-        '【核心操作工具】一次性同时设置一个通道的「强度」和「波形」。这是开始或调整任何刺激时的首选工具——强度和波形必须同时提供，绝不允许单独设强度而不配波形。\n\n' +
+        '【启动工具】启动一个通道：同时设置「强度」和「预设波形」。**只在通道当前是停止状态、需要从零开始播放时使用**。与 stop 配对。\n\n' +
+        `**软启动硬规则**：start 的 strength 上限为 ${MAX_START_STRENGTH}，超过会被自动夹紧。这是为了防止从零突然给用户高强度刺激——冷启动必须温柔，想要更高强度请先 start 再用 adjust_strength 一步步爬升。\n\n` +
         '使用场景：\n' +
-        '• 开始新的刺激：play(channel=A, strength=15, preset=breath)\n' +
-        '• 切换波形并调整强度：play(channel=A, strength=25, preset=tide)\n' +
-        '• 使用自定义频率和强度百分比：play(channel=B, strength=20, frequency=50, intensity=80)\n\n' +
-        '波形参数二选一：\n' +
-        '  (1) 只提供 preset（推荐）：使用预设波形\n' +
-        '  (2) 同时提供 frequency 和 intensity：自定义单一频率/强度的简单波形\n\n' +
-        '注意：strength 是设备输出的绝对强度(0-200)，受安全上限限制；intensity 只是波形内部的能量百分比(0-100)，不同概念。想要"停止"请调用 stop，而不是传 strength=0。',
+        '• 第一次开始刺激：start(channel=A, strength=8, preset=breath)\n' +
+        '• stop 之后重新启动：start(channel=A, strength=5, preset=tide)\n\n' +
+        '不要用 start 的场景：\n' +
+        '• 通道已经在播放，只想换波形 → 用 change_wave\n' +
+        '• 通道已经在播放，只想调强度 → 用 adjust_strength\n' +
+        '• 想要"停止" → 用 stop，不要传 strength=0\n' +
+        '• 六个预设都不合适、需要自定义波形 → 用 design_wave',
       parameters: {
         type: 'object',
         properties: {
@@ -72,14 +66,14 @@ const registry: ToolEntry[] = [
           strength: {
             type: 'integer',
             minimum: 0,
-            maximum: 200,
-            description: '通道输出的绝对强度，0-200。新手从 5-15 开始；会被安全上限自动限制。',
+            maximum: MAX_START_STRENGTH,
+            description: `启动时的强度，0-${MAX_START_STRENGTH}。这是软启动硬上限——超过 ${MAX_START_STRENGTH} 会被自动夹紧。建议从 5-8 起步，之后用 adjust_strength 一步步爬升。`,
           },
           preset: {
             type: 'string',
             enum: ['breath', 'tide', 'pulse_low', 'pulse_mid', 'pulse_high', 'tap'],
             description:
-              '预设波形名（与 frequency/intensity 互斥）：\n' +
+              '预设波形名，六选一：\n' +
               '  • breath — 呼吸节奏，渐强渐弱，最温柔\n' +
               '  • tide   — 潮汐感，波浪般起伏，适合铺垫\n' +
               '  • pulse_low  — 低脉冲，轻柔的规律节奏\n' +
@@ -87,47 +81,23 @@ const registry: ToolEntry[] = [
               '  • pulse_high — 高脉冲，强烈的规律节奏\n' +
               '  • tap    — 轻拍，带节奏停顿，有"点触"感',
           },
-          frequency: {
-            type: 'integer',
-            minimum: 10,
-            maximum: 1000,
-            description: '自定义频率(ms)，范围 10-1000，必须与 intensity 同时提供，且不能与 preset 同用。',
-          },
-          intensity: {
-            type: 'integer',
-            minimum: 0,
-            maximum: 100,
-            description: '自定义波形内部能量百分比，范围 0-100，必须与 frequency 同时提供。注意：这不是 strength！',
-          },
-          duration_frames: {
-            type: 'integer',
-            default: 10,
-            description: '帧数（每帧 100ms）。仅在自定义 frequency+intensity 模式下生效，preset 模式忽略。',
-          },
           loop: { type: 'boolean', default: true, description: '是否循环播放波形，默认 true' },
         },
-        required: ['channel', 'strength'],
+        required: ['channel', 'strength', 'preset'],
       },
     },
-    handler({ channel, strength, preset, frequency, intensity, duration_frames, loop }) {
-      if (preset && (frequency != null || intensity != null))
-        return { error: 'preset 和 frequency/intensity 互斥，请只选一种' };
-      if (!preset && (frequency == null || intensity == null))
-        return { error: '必须提供 preset，或同时提供 frequency 和 intensity' };
-
-      const strengthN = num(strength);
-      const freqN = numOrNull(frequency);
-      const intN = numOrNull(intensity);
-      const framesN = num(duration_frames, 10);
-
-      const safe = clamp(strengthN, channel);
+    handler({ channel, strength, preset, loop }) {
+      const requested = num(strength);
+      // Soft-start: cold-launching a channel is always capped at MAX_START_STRENGTH.
+      // Further escalation must go through adjust_strength step by step.
+      const startCapped = Math.min(requested, MAX_START_STRENGTH);
+      const safe = clamp(startCapped, channel);
       bt.setStrength(channel, safe.value);
-      bt.sendWave(channel, preset || null, freqN, intN, framesN || 10, loop !== false);
-
+      bt.sendWave(channel, preset, null, null, 10, loop !== false);
       return {
         channel,
-        strength: { requested: strengthN, actual: safe.value, limited: safe.limited },
-        wave: preset ? { preset } : { frequency: freqN, intensity: intN },
+        strength: { requested, actual: safe.value, limited: safe.value !== requested },
+        preset,
         loop: loop !== false,
       };
     },
@@ -136,7 +106,7 @@ const registry: ToolEntry[] = [
     def: {
       name: 'stop',
       description:
-        '【关闭工具】完整关闭通道：同时把强度归零并停止波形输出。想要结束刺激时必须用这个工具——不要用 play(strength=0) 或其它变通方式来"关"设备。\n\n' +
+        '【关闭工具】完整关闭通道：同时把强度归零并停止波形输出。想要结束刺激时必须用这个工具——不要用 start(strength=0) 或其它变通方式来"关"设备。\n\n' +
         '使用场景：\n' +
         '• 停止 A 通道：stop(channel=A)\n' +
         '• 紧急全停（A 和 B 都关）：stop() 不传参数\n' +
@@ -162,14 +132,14 @@ const registry: ToolEntry[] = [
   },
   {
     def: {
-      name: 'add_strength',
+      name: 'adjust_strength',
       description:
-        '【微调工具】在不改变当前波形的前提下，相对调整一个通道的强度。用于边缘控制、渐进攀升等需要细腻调整的场景。\n\n' +
+        '【强度调整工具】在不改变当前波形的前提下，相对调整一个通道的强度。这是通道运行中**唯一**的强度调整入口——边缘控制、渐进攀升、轻微回落都用它。\n\n' +
         '使用场景：\n' +
-        '• 缓慢攀升：add_strength(channel=A, delta=3)\n' +
-        '• 轻微回落：add_strength(channel=A, delta=-5)\n' +
-        '• 已经用 play 设好波形，只想在此基础上做 +2/+3 的微调\n\n' +
-        '注意：如果需要同时换波形，请用 play 而不是这个工具。',
+        '• 缓慢攀升：adjust_strength(channel=A, delta=3)\n' +
+        '• 轻微回落：adjust_strength(channel=A, delta=-5)\n' +
+        '• 已经 start 启动后，想在当前波形上做 +2/+3 的细腻变化\n\n' +
+        '注意：如果同时还要换波形，请配合 change_wave 使用。',
       parameters: {
         type: 'object',
         properties: {
@@ -190,14 +160,51 @@ const registry: ToolEntry[] = [
   },
   {
     def: {
+      name: 'change_wave',
+      description:
+        '【换波形工具】在不改变强度的前提下，把一个通道的当前波形换成另一个预设。这是通道运行中**唯一**的波形切换入口——只动波形，不动强度。\n\n' +
+        '使用场景：\n' +
+        '• 用户说"换成潮汐"、"试试 tide"等更换波形的意图\n' +
+        '• 已经 start 启动后，想从 breath 切到 pulse_mid 推进节奏\n' +
+        '• 节奏铺垫阶段切换不同预设，但保持当前强度\n\n' +
+        '注意：如果通道目前是停止状态（strength=0 或刚 stop 过），切了波形也不会有输出，应该改用 start。',
+      parameters: {
+        type: 'object',
+        properties: {
+          channel: CH,
+          preset: {
+            type: 'string',
+            enum: ['breath', 'tide', 'pulse_low', 'pulse_mid', 'pulse_high', 'tap'],
+            description:
+              '要切换到的预设波形名，六选一：\n' +
+              '  • breath — 呼吸节奏，渐强渐弱，最温柔\n' +
+              '  • tide   — 潮汐感，波浪般起伏，适合铺垫\n' +
+              '  • pulse_low  — 低脉冲，轻柔的规律节奏\n' +
+              '  • pulse_mid  — 中脉冲，中等刺激\n' +
+              '  • pulse_high — 高脉冲，强烈的规律节奏\n' +
+              '  • tap    — 轻拍，带节奏停顿，有"点触"感',
+          },
+          loop: { type: 'boolean', default: true, description: '是否循环播放波形，默认 true' },
+        },
+        required: ['channel', 'preset'],
+      },
+    },
+    handler({ channel, preset, loop }) {
+      bt.sendWave(channel, preset, null, null, 10, loop !== false);
+      return { channel, preset, loop: loop !== false };
+    },
+  },
+  {
+    def: {
       name: 'design_wave',
       description:
-        '【高级波形工具】一次性设置强度并播放一段自定义的多步波形。当预设波形不够用、需要构造独特的节奏曲线时使用。\n\n' +
+        '【自定义波形工具】start 的自定义伙伴——当六个预设都不合适时，用这个工具自己造一段波形并启动通道。一次性设置强度并播放。\n\n' +
         '使用场景：\n' +
         '• 制造渐强：steps=[{freq:20,intensity:20,repeat:3},{freq:20,intensity:50,repeat:3},{freq:20,intensity:90,repeat:3}]\n' +
         '• 制造断续节奏：steps=[{freq:10,intensity:100,repeat:1},{freq:10,intensity:0,repeat:2}]\n' +
-        '• 模拟心跳、呼吸等有机节律\n\n' +
-        '每一步(step)代表一段连续相同的帧，帧时长 100ms。repeat 决定这一步持续几帧。与 play 一样必须同时提供 strength。',
+        '• 模拟心跳、呼吸等有机节律\n' +
+        '• 单一恒定的频率/强度也用本工具，传一个 step 即可：steps=[{freq:50,intensity:80,repeat:10}]\n\n' +
+        '每一步(step)代表一段连续相同的帧，帧时长 100ms。repeat 决定这一步持续几帧。与 start 一样必须同时提供 strength。',
       parameters: {
         type: 'object',
         properties: {
@@ -244,53 +251,6 @@ const registry: ToolEntry[] = [
       };
     },
   },
-  {
-    def: {
-      name: 'set_strength_limit',
-      description:
-        '【安全设置】设置 A/B 两个通道的设备侧强度上限。所有 play/add_strength/design_wave 的输出都会被限制在这个上限之内。\n\n' +
-        '使用场景：\n' +
-        '• 用户明确说"强度不要超过 X"时\n' +
-        '• 初次连接或更换场景时，根据用户习惯预设一个安全范围\n\n' +
-        '注意：\n' +
-        '• 这个工具只设置上限，不会直接影响当前输出强度\n' +
-        '• 用户在 App 内单独设置了一道更硬的安全上限，本工具传入的值会被自动夹紧到那个硬上限之内，无法突破。返回结果中的 actual 字段是真正写入设备的值，requested 是你请求的值',
-      parameters: {
-        type: 'object',
-        properties: {
-          limit_a: { type: 'integer', minimum: 0, maximum: 200, description: 'A 通道强度上限，范围 0-200' },
-          limit_b: { type: 'integer', minimum: 0, maximum: 200, description: 'B 通道强度上限，范围 0-200' },
-        },
-        required: ['limit_a', 'limit_b'],
-      },
-    },
-    handler({ limit_a, limit_b }) {
-      const requestedA = num(limit_a);
-      const requestedB = num(limit_b);
-      const safe = clampStrengthLimit(requestedA, requestedB);
-      bt.setStrengthLimit(safe.a, safe.b);
-      return {
-        limit_a: { requested: requestedA, actual: safe.a },
-        limit_b: { requested: requestedB, actual: safe.b },
-        clamped_by_user_cap: safe.clamped,
-      };
-    },
-  },
-  {
-    def: {
-      name: 'get_status',
-      description:
-        '【状态查询】获取设备当前真实状态：连接状态、电量、A/B 强度、A/B 波形是否活跃。\n\n' +
-        '使用场景：\n' +
-        '• 用户询问"现在几档"、"强度多少"、"还在响吗"等状态问题\n' +
-        '• 你需要确认当前设备情况后再决定下一步操作\n' +
-        '• 你需要在回复中提及具体的强度/波形数值时（必须先调这个，不要凭记忆）',
-      parameters: { type: 'object', properties: {} },
-    },
-    handler() {
-      return bt.getStatus();
-    },
-  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -305,11 +265,11 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
   const handler = handlerMap.get(name);
   if (!handler) return JSON.stringify({ error: `Unknown tool: ${name}` });
 
-  // Centralised disconnect guard: any mutating tool fails fast with a
-  // friendly error so the model can tell the user to reconnect. Read-only
-  // tools like get_status are allowed even when disconnected — they just
-  // surface the unconnected state in their response.
-  if (isMutatingTool(name) && !bt.getStatus().connected) {
+  // Centralised disconnect guard: every tool in the registry is now
+  // mutating, so we can fail fast unconditionally if the device isn't
+  // connected. The friendly error tells the model to ask the user to
+  // reconnect rather than retrying with the same args.
+  if (!bt.getStatus().connected) {
     return JSON.stringify({
       error: '设备未连接，无法执行该操作。请告知用户先在 App 内连接郊狼设备，再继续。',
       deviceState: snap(),
@@ -318,14 +278,11 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
 
   try {
     const result = handler(args);
-    const isGetStatus = name === 'get_status';
     return JSON.stringify({
       success: true,
       ...result,
-      ...(!isGetStatus && {
-        deviceState: snap(),
-        _hint: '以上 deviceState 是设备当前真实状态，请根据此状态回复用户。',
-      }),
+      deviceState: snap(),
+      _hint: '以上 deviceState 是设备当前真实状态，请根据此状态回复用户。',
     });
   } catch (err: unknown) {
     console.error(`[tools] ${name}:`, err);
