@@ -6,7 +6,7 @@
 import type { ToolDef, WaveStep } from '../types';
 import * as bt from './bluetooth';
 import { getMaxStrength } from './providers';
-import { MAX_START_STRENGTH } from './policies';
+import { MAX_START_STRENGTH, MAX_BURST_DURATION_MS } from './policies';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -33,6 +33,46 @@ function clamp(value: number, channel: string): { value: number; limited: boolea
 function num(v: unknown, fallback = 0): number {
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? Math.round(n) : fallback;
+}
+
+// ---------------------------------------------------------------------------
+// Burst auto-restore tracking
+// ---------------------------------------------------------------------------
+// `burst` temporarily raises a channel's strength and schedules a setTimeout
+// to drop it back down. The safety contract is that the elevated strength
+// MUST NOT persist past duration_ms, regardless of what happens in between.
+// The timer is only cancelled when the channel has already been zeroed —
+// i.e. by `stop` or by emergency stop via fullStop(). All other mutating
+// tools (adjust_strength, change_wave, design_wave, start) let the timer
+// fire; the handler's min(current, prev) floor keeps the outcome safe.
+const burstRestores = new Map<'A' | 'B', ReturnType<typeof setTimeout>>();
+
+function normChannel(ch: string): 'A' | 'B' {
+  return ch.toUpperCase() === 'A' ? 'A' : 'B';
+}
+
+/** Cancel the pending burst-restore on a channel (no-op if none pending). */
+function cancelBurstRestore(channel: 'A' | 'B' | 'all'): void {
+  if (channel === 'all') {
+    for (const [, timer] of burstRestores) clearTimeout(timer);
+    burstRestores.clear();
+    return;
+  }
+  const timer = burstRestores.get(channel);
+  if (timer !== undefined) {
+    clearTimeout(timer);
+    burstRestores.delete(channel);
+  }
+}
+
+/**
+ * Cancel every pending burst-restore timer. Exposed for the emergency-stop
+ * paths that bypass the tool layer (visibilitychange, beforeunload) so a
+ * pending restore cannot revive the device after the user or lifecycle
+ * handler has already zeroed it.
+ */
+export function cancelAllBurstRestores(): void {
+  cancelBurstRestore('all');
 }
 
 // ---------------------------------------------------------------------------
@@ -120,10 +160,12 @@ const registry: ToolEntry[] = [
     },
     handler({ channel }) {
       if (channel) {
+        cancelBurstRestore(normChannel(channel));
         bt.setStrength(channel, 0);
         bt.stopWave(channel);
         return { channel, stopped: true };
       }
+      cancelBurstRestore('all');
       bt.setStrength('A', 0);
       bt.setStrength('B', 0);
       bt.stopWave(null);
@@ -248,6 +290,98 @@ const registry: ToolEntry[] = [
         strength: { requested: strengthN, actual: safe.value, limited: safe.limited },
         stepsCount: stepsN.length,
         loop: loop !== false,
+      };
+    },
+  },
+  {
+    def: {
+      name: 'burst',
+      description:
+        '【短时突增工具】把一个**正在运行**的通道的强度瞬间拉高，持续一小段时间后自动回落到不高于调用前的水平。专门用于制造短暂的刺激峰值——惩罚、突袭、节奏爆点等。\n\n' +
+        '示例：burst(channel=A, strength=40, duration_ms=2000) — A 通道强度瞬间拉到 40，2 秒后自动回落。\n\n' +
+        '硬性约束：\n' +
+        '  1. 通道必须已在运行，停止状态下会报错。\n' +
+        `  2. duration_ms 范围 100-${MAX_BURST_DURATION_MS}，超过会被夹紧。\n` +
+        '  3. 强度仍受设备/用户绝对上限约束。\n' +
+        '  4. 不替换波形，只改变强度。\n' +
+        '  5. 到时间一定会把强度降到不高于调用前的水平，期间任何其它工具调用都不会取消这个回落。尽可能将其作为最后一个工具调用。',
+      parameters: {
+        type: 'object',
+        properties: {
+          channel: CH,
+          strength: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 200,
+            description: '突增期间的目标强度绝对值，0-200。仍受设备/用户硬上限约束。',
+          },
+          duration_ms: {
+            type: 'integer',
+            minimum: 100,
+            maximum: MAX_BURST_DURATION_MS,
+            description: `突增持续时间（毫秒），100-${MAX_BURST_DURATION_MS}。时间到后强度一定回到不高于调用前的水平。`,
+          },
+        },
+        required: ['channel', 'strength', 'duration_ms'],
+      },
+    },
+    handler({ channel, strength, duration_ms }) {
+      const ch = normChannel(channel);
+      const status = bt.getStatus();
+      const current = ch === 'A' ? status.strengthA : status.strengthB;
+      const waveActive = ch === 'A' ? status.waveActiveA : status.waveActiveB;
+
+      // Channel must already be running — burst is *not* a cold launcher.
+      // Cold-launching at high strength is exactly what MAX_START_STRENGTH
+      // is meant to prevent; burst would be a trivial bypass otherwise.
+      if (current <= 0 || !waveActive) {
+        throw new Error(
+          `通道 ${ch} 当前未在运行 (strength=${current}, waveActive=${waveActive})，burst 只能在已启动的通道上使用。请先用 start 启动通道，再调用 burst。`,
+        );
+      }
+
+      const requestedStrength = num(strength);
+      const requestedDuration = num(duration_ms);
+      const clampedDuration = Math.min(Math.max(100, requestedDuration), MAX_BURST_DURATION_MS);
+      const safeTarget = clamp(requestedStrength, ch);
+
+      // Clear any previous burst-restore on this channel (normally prevented
+      // by the per-turn cap, but kept as a safety net so prev is well-defined).
+      cancelBurstRestore(ch);
+
+      const prev = current;
+      bt.setStrength(ch, safeTarget.value);
+
+      const timer = setTimeout(() => {
+        // Safety floor: at restore time the strength MUST NOT remain above
+        // prev. We compute the new strength as min(currentStrength, prev),
+        // clamped to current device/provider limits. This guarantees:
+        //   - elevated strength always comes down (the safety contract)
+        //   - a strength that has already been lowered is not re-raised
+        //   - stop() leaves the channel at 0 (min(0, prev) = 0)
+        const nowStatus = bt.getStatus();
+        const nowCurrent = ch === 'A' ? nowStatus.strengthA : nowStatus.strengthB;
+        const safePrev = clamp(prev, ch).value;
+        const target = Math.min(nowCurrent, safePrev);
+        if (target !== nowCurrent) bt.setStrength(ch, target);
+        burstRestores.delete(ch);
+      }, clampedDuration);
+
+      burstRestores.set(ch, timer);
+
+      return {
+        channel: ch,
+        burst: {
+          from: prev,
+          to: { requested: requestedStrength, actual: safeTarget.value, limited: safeTarget.limited },
+        },
+        duration_ms: {
+          requested: requestedDuration,
+          actual: clampedDuration,
+          limited: clampedDuration !== requestedDuration,
+        },
+        willRestoreAt: Date.now() + clampedDuration,
+        _note: `${clampedDuration}ms 后强度必定回落到不高于 ${prev} 的水平——这是安全硬保证，不会因为其它工具调用而取消。`,
       };
     },
   },

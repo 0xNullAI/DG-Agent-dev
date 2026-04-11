@@ -12,4 +12,4 @@ export * as bluetooth from './bluetooth';
 export * as history from './history';
 export * as conversation from './conversation';
 export { PROMPT_PRESETS } from './prompts';
-export { executeTool } from './tools';
+export { executeTool, cancelAllBurstRestores } from './tools';

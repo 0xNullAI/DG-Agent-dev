@@ -220,6 +220,13 @@ function describeToolCall(name: string, args: Record<string, unknown>): string {
       return `在 ${ch || '通道'} 播放自定义多步波形（${stepCount} 步），强度调至 ${strength}`;
     }
 
+    case 'burst': {
+      const strength = args.strength;
+      const duration = Number(args.duration_ms);
+      const secs = Number.isFinite(duration) ? (duration / 1000).toFixed(1) : '?';
+      return `${ch || '通道'} 短时突增：强度瞬间拉到 ${strength}，持续 ${secs} 秒后自动回落`;
+    }
+
     default:
       return `调用工具「${name}」`;
   }
