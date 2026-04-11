@@ -37,30 +37,30 @@ interface BluetoothDevice extends EventTarget {
 // BLE UUIDs
 // ---------------------------------------------------------------------------
 const DEVICE_NAME_PREFIX = '47L121';
-const PRIMARY_SERVICE    = '0000180c-0000-1000-8000-00805f9b34fb';
-const WRITE_CHAR         = '0000150a-0000-1000-8000-00805f9b34fb';
-const NOTIFY_CHAR        = '0000150b-0000-1000-8000-00805f9b34fb';
-const BATTERY_SERVICE    = '0000180a-0000-1000-8000-00805f9b34fb';
-const BATTERY_CHAR       = '00001500-0000-1000-8000-00805f9b34fb';
+const PRIMARY_SERVICE = '0000180c-0000-1000-8000-00805f9b34fb';
+const WRITE_CHAR = '0000150a-0000-1000-8000-00805f9b34fb';
+const NOTIFY_CHAR = '0000150b-0000-1000-8000-00805f9b34fb';
+const BATTERY_SERVICE = '0000180a-0000-1000-8000-00805f9b34fb';
+const BATTERY_CHAR = '00001500-0000-1000-8000-00805f9b34fb';
 
 // ---------------------------------------------------------------------------
 // Preset waveforms  –  each entry is [encoded_freq, intensity]
 // ---------------------------------------------------------------------------
 const PRESETS: Record<WavePreset, WaveFrame[]> = {
   breath: [
-    [10,0],[10,20],[10,40],[10,60],[10,80],[10,100],
-    [10,100],[10,100],[10,0],[10,0],[10,0],[10,0],
+    [10, 0], [10, 20], [10, 40], [10, 60], [10, 80], [10, 100],
+    [10, 100], [10, 100], [10, 0], [10, 0], [10, 0], [10, 0],
   ],
   tide: [
-    [10,0],[11,16],[13,33],[14,50],[16,66],[18,83],[19,100],
-    [21,92],[22,84],[24,76],[26,68],[26,0],[27,16],[29,33],
-    [30,50],[32,66],[34,83],[35,100],[37,92],[38,84],[40,76],[42,68],
+    [10, 0], [11, 16], [13, 33], [14, 50], [16, 66], [18, 83], [19, 100],
+    [21, 92], [22, 84], [24, 76], [26, 68], [26, 0], [27, 16], [29, 33],
+    [30, 50], [32, 66], [34, 83], [35, 100], [37, 92], [38, 84], [40, 76], [42, 68],
   ],
-  pulse_low:  Array.from({ length: 10 }, (): WaveFrame => [10, 30]),
-  pulse_mid:  Array.from({ length: 10 }, (): WaveFrame => [10, 60]),
+  pulse_low: Array.from({ length: 10 }, (): WaveFrame => [10, 30]),
+  pulse_mid: Array.from({ length: 10 }, (): WaveFrame => [10, 60]),
   pulse_high: Array.from({ length: 10 }, (): WaveFrame => [10, 100]),
   tap: [
-    [10,100],[10,0],[10,0],[10,100],[10,0],[10,0],
+    [10, 100], [10, 0], [10, 0], [10, 100], [10, 0], [10, 0],
   ],
 };
 
@@ -164,7 +164,7 @@ function toInt(v: unknown, fallback = 0): number {
 // intensity[3] >= 101 marks inactive.  We use the exact pattern from the spec:
 // freq = [0,0,0,0], intensity = [0,0,0,101].
 const INACTIVE_FREQ: number[] = [0, 0, 0, 0];
-const INACTIVE_INT: number[]  = [0, 0, 0, 101];
+const INACTIVE_INT: number[] = [0, 0, 0, 101];
 
 // ---------------------------------------------------------------------------
 // Wave frame helpers
@@ -238,13 +238,13 @@ function buildB0(): Uint8Array {
 
   // Channel A wave
   const wA = advanceWave('A');
-  buf[4]  = wA.freq[0]; buf[5]  = wA.freq[1]; buf[6]  = wA.freq[2]; buf[7]  = wA.freq[3];
-  buf[8]  = wA.int[0];  buf[9]  = wA.int[1];  buf[10] = wA.int[2];  buf[11] = wA.int[3];
+  buf[4] = wA.freq[0]; buf[5] = wA.freq[1]; buf[6] = wA.freq[2]; buf[7] = wA.freq[3];
+  buf[8] = wA.int[0]; buf[9] = wA.int[1]; buf[10] = wA.int[2]; buf[11] = wA.int[3];
 
   // Channel B wave
   const wB = advanceWave('B');
   buf[12] = wB.freq[0]; buf[13] = wB.freq[1]; buf[14] = wB.freq[2]; buf[15] = wB.freq[3];
-  buf[16] = wB.int[0];  buf[17] = wB.int[1];  buf[18] = wB.int[2];  buf[19] = wB.int[3];
+  buf[16] = wB.int[0]; buf[17] = wB.int[1]; buf[18] = wB.int[2]; buf[19] = wB.int[3];
 
   return buf;
 }
@@ -261,8 +261,8 @@ function handleNotification(event: Event): void {
   if (header !== 0xB1) return;
 
   const ackSeq = dv.getUint8(1);
-  const curA   = dv.getUint8(2);
-  const curB   = dv.getUint8(3);
+  const curA = dv.getUint8(2);
+  const curB = dv.getUint8(3);
 
   // Update confirmed strength values
   state.strengthA = curA;
@@ -382,7 +382,7 @@ export async function scanAndConnect(): Promise<void> {
 
   // Primary service – write & notify characteristics
   const primarySvc = await bleServer.getPrimaryService(PRIMARY_SERVICE);
-  writeChar  = await primarySvc.getCharacteristic(WRITE_CHAR);
+  writeChar = await primarySvc.getCharacteristic(WRITE_CHAR);
   notifyChar = await primarySvc.getCharacteristic(NOTIFY_CHAR);
 
   // Subscribe to B1 notifications
@@ -632,14 +632,14 @@ export function stopWave(channel?: string | null): void {
  */
 export function getStatus(): DeviceState {
   return {
-    connected:   state.connected,
-    deviceName:  state.deviceName,
-    address:     state.address,
-    battery:     state.battery,
-    strengthA:   state.strengthA,
-    strengthB:   state.strengthB,
-    limitA:      state.limitA,
-    limitB:      state.limitB,
+    connected: state.connected,
+    deviceName: state.deviceName,
+    address: state.address,
+    battery: state.battery,
+    strengthA: state.strengthA,
+    strengthB: state.strengthB,
+    limitA: state.limitA,
+    limitB: state.limitB,
     waveActiveA: waveState.A.active,
     waveActiveB: waveState.B.active,
   };

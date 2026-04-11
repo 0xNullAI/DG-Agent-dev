@@ -47,16 +47,16 @@
   /* Dark — 黑黄 */
   --bg:          #080808;
   --bg-elevated: #141414;
-  --accent:      #ffd700;
-  --accent-soft: rgba(255,215,0,0.10);
-  --accent-hover:rgba(255,215,0,0.18);
+  --accent:      #ffe99d;
+  --accent-soft: rgba(255,233,157,0.10);
+  --accent-hover:rgba(255,233,157,0.18);
   --highlight:   #ffb800;
   --text:        #ececec;
   --text-2:      #999999;
   --text-3:      #666666;
   --border:      #222222;
   --border-strong:#333333;
-  --user-bubble: #ffd700;
+  --user-bubble: #ffe99d;
   --user-text:   #080808;
   --ai-bubble:   #141414;
   --input-bg:    #141414;
@@ -70,7 +70,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg:#080808;--bg-elevated:#141414;--accent:#ffd700;--accent-soft:rgba(255,215,0,0.10);--accent-hover:rgba(255,215,0,0.18);--highlight:#ffb800;--text:#ececec;--text-2:#999999;--text-3:#666666;--border:#222222;--border-strong:#333333;--user-bubble:#ffd700;--user-text:#080808;--ai-bubble:#141414;--input-bg:#141414;--surface:#141414;--shadow-sm:0 1px 2px rgba(0,0,0,0.3);--shadow:0 2px 8px rgba(0,0,0,0.4);--shadow-lg:0 8px 32px rgba(0,0,0,0.6);--glass:rgba(14,14,14,0.85);--glass-border:rgba(34,34,34,0.60);
+    --bg:#080808;--bg-elevated:#141414;--accent:#ffe99d;--accent-soft:rgba(255,233,157,0.10);--accent-hover:rgba(255,233,157,0.18);--highlight:#ffb800;--text:#ececec;--text-2:#999999;--text-3:#666666;--border:#222222;--border-strong:#333333;--user-bubble:#ffe99d;--user-text:#080808;--ai-bubble:#141414;--input-bg:#141414;--surface:#141414;--shadow-sm:0 1px 2px rgba(0,0,0,0.3);--shadow:0 2px 8px rgba(0,0,0,0.4);--shadow-lg:0 8px 32px rgba(0,0,0,0.6);--glass:rgba(14,14,14,0.85);--glass-border:rgba(34,34,34,0.60);
   }
 }
 
@@ -658,6 +658,8 @@ html, body {
 #btn-send:hover { filter: brightness(1.08); }
 #btn-send:active { transform: scale(0.93); }
 #btn-send:disabled { opacity: 0.4; cursor: not-allowed; }
+#btn-send.busy { background: #d94a4a; }
+#btn-send.busy:hover { filter: brightness(1.12); }
 
 /* ============================================================
    DROPDOWNS (scene / provider)
@@ -919,6 +921,14 @@ html, body {
   color: var(--accent);
 }
 
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-top-tabs { margin-bottom: 4px; }
+
 /* Provider tabs in settings */
 .provider-tabs {
   display: flex;
@@ -995,19 +1005,6 @@ html, body {
 }
 
 /* ---------- Behavior settings ---------- */
-.behavior-settings {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.behavior-settings-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 12px;
-}
-
 .setting-group-inline {
   flex-direction: row !important;
   align-items: center;
@@ -1119,6 +1116,105 @@ html, body {
 .strength-stepper-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* ---------- Permission confirmation mode ---------- */
+.perm-mode-wrap {
+  margin-top: 18px;
+  margin-bottom: 4px;
+}
+
+.bg-behavior-wrap {
+  margin-top: 18px;
+}
+
+.perm-mode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.perm-mode-remain {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.perm-mode-remain.hidden { display: none; }
+
+.perm-mode-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.perm-mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.05s;
+}
+.perm-mode-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.perm-mode-btn:active { transform: scale(0.98); }
+.perm-mode-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.perm-mode-btn-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.perm-mode-btn.active .perm-mode-btn-label {
+  color: var(--accent);
+}
+.perm-mode-btn-sub {
+  font-size: 11px;
+  color: var(--text-2);
+  line-height: 1.3;
+}
+
+/* Warning tint for the 'always' option */
+.perm-mode-btn-always .perm-mode-btn-sub { color: #d94a4a; }
+.perm-mode-btn-always.active {
+  background: rgba(217, 74, 74, 0.08);
+  border-color: #d94a4a;
+  box-shadow: 0 0 0 2px rgba(217, 74, 74, 0.12);
+}
+.perm-mode-btn-always.active .perm-mode-btn-label { color: #d94a4a; }
+
+/* Compact layout on narrow screens — 3 pills would crush labels,
+   so stack them vertically under ~520px. */
+@media (max-width: 520px) {
+  .perm-mode-group {
+    grid-template-columns: 1fr;
+  }
+  .perm-mode-btn {
+    padding: 12px 14px;
+  }
+  .perm-mode-btn-label { font-size: 14px; }
+  .perm-mode-btn-sub { font-size: 12px; }
 }
 
 /* ---------- Toggle switch ---------- */
@@ -1254,6 +1350,17 @@ html, body {
   }
   .provider-tab {
     flex: 0 0 calc(50% - 2px);
+  }
+  /* First tab (免费体验) takes the whole first row; the remaining 4 wrap
+     into a 2×2 grid underneath. */
+  .provider-tab:first-child {
+    flex: 0 0 100%;
+  }
+  /* Top-level settings tabs (安全 / API) should stay side-by-side. */
+  .settings-top-tabs { flex-wrap: nowrap; }
+  .settings-top-tabs .provider-tab,
+  .settings-top-tabs .provider-tab:first-child {
+    flex: 1 1 0;
   }
 
   .icon-btn { width: 34px; height: 34px; }
@@ -1569,4 +1676,240 @@ body.safety-notice-open {
 .update-banner-close:hover {
   opacity: 1;
   background: rgba(255, 255, 255, 0.18);
+}
+
+/* ============================================================
+   Permission dialog (per-tool-call approval)
+   ============================================================ */
+.permission-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top))
+           max(16px, env(safe-area-inset-right))
+           max(16px, env(safe-area-inset-bottom))
+           max(16px, env(safe-area-inset-left));
+  animation: perm-fade-in 0.18s ease-out;
+  overscroll-behavior: contain;
+}
+@keyframes perm-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.permission-modal {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  width: 100%;
+  max-width: 440px;
+  max-height: 90dvh;
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: perm-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes perm-pop {
+  from { transform: translateY(12px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.permission-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.permission-subtitle {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-top: -6px;
+}
+
+.permission-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+.permission-tool-label {
+  font-size: 12px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.permission-tool-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.permission-args-label {
+  font-size: 12px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+.permission-args {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.permission-description {
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.permission-raw-details {
+  margin-top: 2px;
+}
+.permission-raw-details > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-2);
+  padding: 4px 0;
+  user-select: none;
+  list-style: none;
+}
+.permission-raw-details > summary::-webkit-details-marker {
+  display: none;
+}
+.permission-raw-details > summary::before {
+  content: '▸ ';
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.permission-raw-details[open] > summary::before {
+  content: '▾ ';
+}
+.permission-raw-details > summary:hover {
+  color: var(--accent);
+}
+.permission-raw-details[open] > .permission-args {
+  margin-top: 6px;
+}
+
+.permission-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+.permission-btn {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.05s, border-color 0.15s;
+}
+.permission-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+.permission-btn:active { transform: scale(0.97); }
+
+.permission-btn-deny {
+  grid-column: 1 / 2;
+  color: #d94a4a;
+  border-color: rgba(217, 74, 74, 0.4);
+}
+.permission-btn-deny:hover {
+  background: rgba(217, 74, 74, 0.1);
+  border-color: #d94a4a;
+}
+.permission-btn-once {
+  grid-column: 2 / 3;
+}
+.permission-btn-timed {
+  grid-column: 1 / 2;
+}
+.permission-btn-always {
+  grid-column: 2 / 3;
+  background: var(--accent);
+  color: var(--user-text);
+  border-color: var(--accent);
+}
+.permission-btn-always:hover {
+  filter: brightness(1.08);
+  background: var(--accent);
+}
+
+@media (max-width: 480px) {
+  .permission-modal {
+    padding: 18px 16px 14px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+  .permission-title { font-size: 15px; }
+  .permission-subtitle { font-size: 12.5px; }
+  .permission-description { font-size: 13.5px; padding: 11px 12px; }
+
+  /* Single-column buttons so long Chinese labels never truncate, with
+     bigger tap targets (≥44px) and a safer top-to-bottom order:
+     allow-once → timed → always → deny. */
+  .permission-buttons {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .permission-btn {
+    padding: 14px 14px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+  .permission-btn-deny,
+  .permission-btn-once,
+  .permission-btn-timed,
+  .permission-btn-always {
+    grid-column: 1 / -1;
+  }
+  .permission-btn-once   { order: 1; }
+  .permission-btn-timed  { order: 2; }
+  .permission-btn-always { order: 3; }
+  .permission-btn-deny   { order: 4; }
+}
+
+/* Landscape phones: viewport is very short, shrink vertical spacing
+   and allow internal scrolling via the modal's max-height. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .permission-modal {
+    padding: 14px 18px 12px;
+    gap: 8px;
+  }
+  .permission-title { font-size: 14px; }
+  .permission-subtitle { margin-top: -4px; }
+  .permission-description { padding: 9px 12px; font-size: 13px; }
+  .permission-args { max-height: 100px; }
 }

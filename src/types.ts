@@ -91,10 +91,27 @@ export function getItemText(item: ConversationItem): { role: 'user' | 'assistant
 // Chat callbacks
 // ---------------------------------------------------------------------------
 
-/** Callbacks for the AI chat function */
-export interface ChatCallbacks {
-  onToolCall: (name: string, args: Record<string, unknown>) => Promise<string>;
-  onStreamText?: (chunk: string) => void;
+/**
+ * AgentSink — single sink for all UI-facing events emitted by the runner.
+ * The runner does not know about UI state (msgIds, typing dots, etc).
+ * The conversation layer implements a sink that translates these events
+ * into concrete UI callback calls and manages bubble lifecycle internally.
+ */
+export interface AgentSink {
+  /** A streamed text delta arrived. `accumulated` is the full text so far. */
+  onTextDelta(accumulated: string): void;
+  /** The current streamed assistant message is final and should be locked in. */
+  onTextComplete(): void;
+  /** The current streamed assistant message must be discarded entirely (hallucination guard). */
+  onTextDiscard(): void;
+  /**
+   * Render a complete assistant message that was NOT produced via streaming
+   * (e.g. the iteration-ceiling sentinel or a synthetic notice). The sink
+   * creates a fresh bubble and finalizes it immediately.
+   */
+  onTextInline(text: string): void;
+  /** A tool call was executed. Notification only — the result is already in the LLM input. */
+  onToolCall(name: string, args: Record<string, unknown>, result: string): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,13 +127,6 @@ export interface PromptPreset {
   prompt: string;
 }
 
-/** Saved custom prompt */
-export interface SavedPrompt {
-  id: string;
-  name: string;
-  prompt: string;
-}
-
 /** Conversation record for persistence */
 export interface ConversationRecord {
   id: string;
@@ -126,6 +136,9 @@ export interface ConversationRecord {
   createdAt: number;
   updatedAt: number;
 }
+
+/** Permission-prompt policy for AI-initiated tool calls. */
+export type PermissionMode = 'ask' | 'timed' | 'always';
 
 /** App settings persisted in localStorage */
 export interface AppSettings {
@@ -141,6 +154,16 @@ export interface AppSettings {
   maxStrengthB?: number;
   /** @deprecated legacy single-channel cap, migrated into maxStrengthA/B on load. */
   maxStrength?: number;
+  /**
+   * How permission prompts behave for mutating tool calls:
+   *  - 'ask'    : show the dialog every call (default, safest)
+   *  - 'timed'  : silent auto-allow for a rolling 5-minute window,
+   *               auto-reverts to 'ask' on expiry
+   *  - 'always' : silent auto-allow for every mutating call
+   */
+  permissionMode?: PermissionMode;
+  /** Epoch-ms expiry for the 'timed' permission mode. Only read when permissionMode === 'timed'. */
+  permissionModeExpiresAt?: number;
 }
 
 /** Provider field definition */

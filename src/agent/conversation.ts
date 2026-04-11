@@ -1,40 +1,60 @@
 /**
- * agent/conversation.ts — Conversation state and message orchestration.
- * Uses ConversationItem[] as native state, mapping directly to Responses API input.
+ * conversation.ts — Top-level session orchestration.
+ *
+ * Owns three things, nothing else:
+ *   1. ConversationStore — a clean stream of `user` / `assistant` text items.
+ *      Tool calls and outputs never enter this store; they live only inside
+ *      the runner's per-turn working state.
+ *   2. ChatSink — a per-`sendMessage` adapter that turns runner events into
+ *      concrete UI callback calls and manages bubble lifecycle (stream /
+ *      finalize / discard / inline).
+ *   3. sendMessage — the single public mutation entry point. Wires up the
+ *      permission gate (per-tool grant cache + settings-level mode), the
+ *      abort controller, and the error-classification path, then hands the
+ *      whole thing to `runTurn` and pushes the returned items into the store.
  */
 
-import type { ConversationItem, ConversationRecord } from '../types';
-import { getItemText } from '../types';
+import type { AgentSink, ConversationItem, ConversationRecord } from '../types';
 import * as history from './history';
-import { buildSystemPrompt } from './prompts';
-import { chat } from './ai-service';
+import { buildInstructions } from './prompts';
 import { tools, executeTool } from './tools';
 import * as bt from './bluetooth';
+import { runTurn } from './runner';
+import { resolveProviderConfig } from './transport';
+import {
+  requiresPermission,
+  hasGrant,
+  recordChoice,
+  getEffectiveMode,
+  clearAlwaysMode,
+  clearGrants,
+  type PermissionChoice,
+} from './permissions';
 
 // ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
-
-const conversationItems: ConversationItem[] = [];
-let currentConversation: ConversationRecord | null = null;
-let isProcessing = false;
-let activePresetId = 'gentle';
-
-const MAX_ITEMS = 200;
-
-// ---------------------------------------------------------------------------
-// Callbacks — UI layer registers these
+// UI callback contract
 // ---------------------------------------------------------------------------
 
 export interface ConversationCallbacks {
   onUserMessage: (text: string) => void;
   onAssistantStream: (text: string, msgId?: string) => string;
   onAssistantFinalize: (msgId: string) => void;
+  onAssistantDiscard: (msgId: string) => void;
   onToolCall: (name: string, args: Record<string, unknown>, result: string) => void;
   onTypingStart: () => void;
   onTypingEnd: () => void;
   onError: (message: string) => void;
   onHistoryChange: () => void;
+  /**
+   * Prompt the user to allow or deny a mutating tool call. The UI should
+   * show a modal with the four standard scopes (once / timed / always /
+   * deny). If omitted, the conversation layer defaults to allow — useful
+   * for tests and backwards compat.
+   */
+  onRequestPermission?: (
+    toolName: string,
+    args: Record<string, unknown>,
+  ) => Promise<PermissionChoice>;
 }
 
 let callbacks: ConversationCallbacks | null = null;
@@ -44,207 +64,273 @@ export function registerCallbacks(cb: ConversationCallbacks): void {
 }
 
 // ---------------------------------------------------------------------------
-// Public API
+// ConversationStore — pure user/assistant text stream
 // ---------------------------------------------------------------------------
 
-export function getHistory(): readonly ConversationItem[] {
-  return conversationItems;
+const MAX_ITEMS = 200;
+
+const store = {
+  items: [] as ConversationItem[],
+  current: null as ConversationRecord | null,
+  isProcessing: false,
+  activePresetId: 'gentle',
+};
+
+/** Abort controller for the currently in-flight sendMessage, if any. */
+let currentAbort: AbortController | null = null;
+
+/**
+ * Cancel the in-flight turn. Safe to call even if nothing is running.
+ * The sendMessage promise will resolve (not reject) — the cancellation
+ * is reported as a short assistant note in the conversation.
+ */
+export function abortCurrent(): void {
+  if (currentAbort) currentAbort.abort();
 }
 
-export function getCurrentConversation(): ConversationRecord | null {
-  return currentConversation;
-}
+// ---------------------------------------------------------------------------
+// Error classification — turn raw transport errors into human messages
+// ---------------------------------------------------------------------------
 
-export function getActivePresetId(): string {
-  return activePresetId;
-}
-
-export function setActivePresetId(id: string): void {
-  activePresetId = id;
-}
-
-export function getIsProcessing(): boolean {
-  return isProcessing;
-}
-
-export function loadConversation(conv: ConversationRecord): void {
-  conversationItems.length = 0;
-  currentConversation = conv;
-  activePresetId = conv.presetId || 'gentle';
-
-  for (const item of conv.items) {
-    conversationItems.push(item);
+function classifyError(err: any): string {
+  const raw = err?.message || String(err ?? 'unknown');
+  if (/API key is required/i.test(raw)) {
+    return '还没有配置 API Key，请在右上角 ⚙️ 设置中填写。';
   }
+  const m = raw.match(/API error (\d{3})/);
+  if (m) {
+    const code = Number(m[1]);
+    if (code === 401) return 'API Key 无效或已过期，请在设置中检查。';
+    if (code === 403) return 'API 访问被拒绝（权限不足或地区限制），请检查账号或代理。';
+    if (code === 429) return '请求过于频繁，已被限流，请稍后再试。';
+    if (code >= 500) return 'AI 服务暂时不可用，请稍后重试。';
+    if (code === 400) return '请求被服务端拒绝（参数或模型不支持），请检查设置。';
+  }
+  if (/Failed to fetch|NetworkError|TypeError: network|net::/i.test(raw)) {
+    return '网络连接失败，请检查网络或代理后重试。';
+  }
+  return `出错了：${raw}`;
 }
 
-export function startNewConversation(): void {
-  conversationItems.length = 0;
-  currentConversation = null;
+function isAbortError(err: unknown): boolean {
+  return (err as { name?: string } | null)?.name === 'AbortError';
+}
+
+/** Strip non-text items (legacy data: function_call / function_call_output). */
+function sanitize(items: readonly ConversationItem[]): ConversationItem[] {
+  return items.filter((it: any) => it.role === 'user' || it.role === 'assistant');
 }
 
 /**
- * Send a user message: orchestrates AI call, tool execution, streaming.
+ * Pick the tail of the conversation to send to the LLM: the previous user
+ * turn's full exchange (its user message plus every assistant item it
+ * produced, including any "narrate then act" bubbles) followed by the
+ * just-pushed current user message. On the very first turn there is no
+ * prior exchange and we return just the current user message.
  */
-export async function sendMessage(text: string, customPrompt: string): Promise<void> {
-  if (isProcessing || !callbacks) return;
-  isProcessing = true;
-
-  // Remove all tool items from previous turns to save tokens
-  for (let i = conversationItems.length - 1; i >= 0; i--) {
-    const item = conversationItems[i] as any;
-    if (item.type === 'function_call' || item.type === 'function_call_output') {
-      conversationItems.splice(i, 1);
+function tailWithPrevExchange(items: readonly ConversationItem[]): ConversationItem[] {
+  const lastIdx = items.length - 1;
+  for (let i = lastIdx - 1; i >= 0; i--) {
+    if ((items[i] as any).role === 'user') {
+      return items.slice(i);
     }
   }
-
-  callbacks.onUserMessage(text);
-  conversationItems.push({ role: 'user', content: text });
-
-  if (!currentConversation) {
-    currentConversation = history.createConversation(activePresetId);
-  }
-
-  callbacks.onTypingStart();
-  let currentMsgId: string | null = null;
-  let streamedText = '';
-
-  try {
-    const systemPrompt = buildSystemPrompt(activePresetId, customPrompt);
-
-    // Non-destructive augmentation: append device status + tool-call reminder
-    // to the last user message in a *copy* of the items array. The stored
-    // conversationItems remain unchanged so history/UI show the raw user text.
-    const itemsForLLM = augmentLastUserItem(conversationItems);
-
-    // Debug: print the final user message (with injected context) sent to LLM
-    const lastUser = [...itemsForLLM].reverse().find((it: any) => it.role === 'user') as any;
-    if (lastUser) {
-      console.log('[User → LLM]\n' + lastUser.content);
-    }
-
-    const newItems = await chat(
-      itemsForLLM,
-      systemPrompt,
-      tools,
-      {
-        onToolCall: async (toolName: string, toolArgs: Record<string, unknown>) => {
-          callbacks!.onTypingEnd();
-          if (streamedText && currentMsgId) {
-            callbacks!.onAssistantFinalize(currentMsgId);
-            streamedText = '';
-            currentMsgId = null;
-          }
-          console.log(`[Tool → ${toolName}]`, JSON.stringify(toolArgs));
-          let result: string;
-          try {
-            result = await executeTool(toolName, toolArgs);
-          } catch (err: any) {
-            result = JSON.stringify({ error: err.message });
-          }
-          console.log(`[Tool ← ${toolName}]`, result);
-          callbacks!.onToolCall(toolName, toolArgs, result);
-          callbacks!.onTypingStart();
-          return result;
-        },
-        onStreamText: (chunk: string) => {
-          callbacks!.onTypingEnd();
-          streamedText += chunk;
-          currentMsgId = callbacks!.onAssistantStream(streamedText, currentMsgId || undefined);
-        },
-      },
-    );
-
-    callbacks.onTypingEnd();
-
-    // Append all new items to conversation state
-    conversationItems.push(...newItems);
-
-    console.log('[Current context]', JSON.parse(JSON.stringify(conversationItems)));
-
-    // Extract final assistant text for UI finalization
-    const lastAssistant = [...newItems].reverse().find((item) => {
-      const display = getItemText(item);
-      return display?.role === 'assistant';
-    });
-    const finalText = streamedText || (lastAssistant ? getItemText(lastAssistant)?.text : '') || '';
-
-    if (finalText) {
-      if (!currentMsgId) {
-        currentMsgId = callbacks.onAssistantStream(finalText, undefined);
-      }
-      callbacks.onAssistantFinalize(currentMsgId);
-    }
-  } catch (err: any) {
-    callbacks.onTypingEnd();
-    callbacks.onError(err.message || String(err));
-  } finally {
-    isProcessing = false;
-
-    if (currentConversation) {
-      currentConversation.items = [...conversationItems];
-      currentConversation.title = history.generateTitle(conversationItems);
-      currentConversation.updatedAt = Date.now();
-      history.saveConversation(currentConversation);
-      callbacks?.onHistoryChange();
-    }
-
-    pruneItems();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Internal
-// ---------------------------------------------------------------------------
-
-/**
- * Build a per-turn snapshot of the conversation where the *last* user message
- * is appended with current device status and a reminder that the model must
- * call at least one tool. The original `conversationItems` is not mutated, so
- * persisted history and prior turns stay free of injected context.
- */
-function augmentLastUserItem(items: readonly ConversationItem[]): ConversationItem[] {
-  const copy = items.slice();
-  for (let i = copy.length - 1; i >= 0; i--) {
-    const item = copy[i] as any;
-    if (item.role === 'user' && typeof item.content === 'string') {
-      copy[i] = { ...item, content: item.content + buildUserContextSuffix() };
-      break;
-    }
-  }
-  return copy;
-}
-
-function buildUserContextSuffix(): string {
-  const s = bt.getStatus();
-  const conn = s.connected ? `已连接${s.deviceName ? `（${s.deviceName}）` : ''}` : '未连接';
-  const battery = s.battery != null ? `${s.battery}%` : '未知';
-  return (
-    `\n\n[系统附加上下文 — 用户不可见]\n` +
-    `当前郊狼设备状态：\n` +
-    `  • 连接：${conn}\n` +
-    `  • 电量：${battery}\n` +
-    `  • A 通道：强度 ${s.strengthA}/${s.limitA}，波形${s.waveActiveA ? '活跃' : '停止'}\n` +
-    `  • B 通道：强度 ${s.strengthB}/${s.limitB}，波形${s.waveActiveB ? '活跃' : '停止'}\n` +
-    `\n【强制要求 — 违反视为严重错误】\n` +
-    `本轮回复你【必须】调用至少一个工具，绝无例外！不调用工具就直接回复文字是被严格禁止的行为。\n` +
-    `- 涉及设备操作 → 调用对应的操作工具（play / stop / add_strength / design_wave / set_strength_limit）\n` +
-    `- 用户询问状态 → 调用 get_status\n` +
-    `- 普通聊天、问候、闲聊、情感交流等任何场景 → 也必须调用 get_status，然后再根据结果回复用户\n` +
-    `再次强调：本轮不允许"零工具调用"的纯文字回复。先调工具，再说话。`
-  );
+  return items.slice(lastIdx);
 }
 
 function pruneItems(): void {
-  if (conversationItems.length <= MAX_ITEMS) return;
-  // Find a safe cut point that doesn't split function_call / function_call_output pairs
-  let cut = conversationItems.length - MAX_ITEMS;
-  while (cut < conversationItems.length) {
-    const item = conversationItems[cut] as any;
-    if (item.type === 'function_call' || item.type === 'function_call_output') {
-      cut++;
-    } else {
-      break;
+  if (store.items.length <= MAX_ITEMS) return;
+  store.items.splice(0, store.items.length - MAX_ITEMS);
+}
+
+// ---------------------------------------------------------------------------
+// Read-only accessors
+// ---------------------------------------------------------------------------
+
+export function getCurrentConversation(): ConversationRecord | null {
+  return store.current;
+}
+
+export function getActivePresetId(): string {
+  return store.activePresetId;
+}
+
+export function setActivePresetId(id: string): void {
+  store.activePresetId = id;
+}
+
+export function loadConversation(conv: ConversationRecord): void {
+  store.items = sanitize(conv.items);
+  store.current = conv;
+  store.activePresetId = conv.presetId || 'gentle';
+}
+
+export function startNewConversation(): void {
+  store.items = [];
+  store.current = null;
+  // A fresh conversation should not inherit broad trust granted earlier:
+  //   - the session-wide 'always' mode is revoked
+  //   - every per-tool grant accumulated via the dialog is wiped
+  // The 5-minute 'timed' settings mode keeps its own expiry and is left
+  // untouched here.
+  clearAlwaysMode();
+  clearGrants();
+}
+
+// ---------------------------------------------------------------------------
+// ChatSink — per-sendMessage UI adapter
+// ---------------------------------------------------------------------------
+
+class ChatSink implements AgentSink {
+  private cb: ConversationCallbacks;
+  private msgId: string | null = null;
+
+  constructor(cb: ConversationCallbacks) {
+    this.cb = cb;
+  }
+
+  /** Drop any in-flight bubble without finalizing (used on error). */
+  discardPendingBubble(): void {
+    if (this.msgId) {
+      this.cb.onAssistantDiscard(this.msgId);
+      this.msgId = null;
     }
   }
-  if (cut > 0) conversationItems.splice(0, cut);
+
+  // ---- AgentSink interface ----
+
+  onTextDelta(accumulated: string): void {
+    this.cb.onTypingEnd();
+    this.msgId = this.cb.onAssistantStream(accumulated, this.msgId || undefined);
+  }
+
+  onTextComplete(): void {
+    if (this.msgId) {
+      this.cb.onAssistantFinalize(this.msgId);
+      this.msgId = null;
+    }
+  }
+
+  onTextDiscard(): void {
+    this.discardPendingBubble();
+    this.cb.onTypingStart();
+  }
+
+  onTextInline(text: string): void {
+    if (!text) return;
+    this.discardPendingBubble();
+    const id = this.cb.onAssistantStream(text, undefined);
+    this.cb.onAssistantFinalize(id);
+  }
+
+  onToolCall(name: string, args: Record<string, unknown>, result: string): void {
+    // If there was streamed text before the tool call ("narrate then act"),
+    // lock that bubble in before showing the tool notification.
+    this.onTextComplete();
+    this.cb.onToolCall(name, args, result);
+    this.cb.onTypingStart();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// sendMessage — the only mutation entry point
+// ---------------------------------------------------------------------------
+
+export async function sendMessage(text: string, customPrompt: string): Promise<void> {
+  if (store.isProcessing || !callbacks) return;
+  store.isProcessing = true;
+
+  const cb = callbacks;
+  cb.onUserMessage(text);
+  store.items.push({ role: 'user', content: text });
+
+  if (!store.current) {
+    store.current = history.createConversation(store.activePresetId);
+  }
+
+  const sink = new ChatSink(cb);
+  cb.onTypingStart();
+
+  const abort = new AbortController();
+  currentAbort = abort;
+
+  // Permission gate:
+  //   1. Only mutating tools are gated at all
+  //   2. The user's chosen mode ('ask' | 'timed' | 'always') overrides everything
+  //      — 'timed' and 'always' skip the dialog entirely
+  //   3. In 'ask' mode we consult the per-tool grant cache first, only hit the
+  //      UI on a miss, then record the user's choice
+  const requestPermission = async (
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<'allow' | 'deny'> => {
+    if (!requiresPermission(name)) return 'allow';
+
+    const mode = getEffectiveMode();
+    if (mode === 'always' || mode === 'timed') return 'allow';
+
+    // mode === 'ask'
+    if (hasGrant(name)) return 'allow';
+    if (!cb.onRequestPermission) return 'allow';
+    const choice = await cb.onRequestPermission(name, args);
+    return recordChoice(name, choice);
+  };
+
+  try {
+    const finalItems = await runTurn({
+      // Keep only the previous exchange (prior user + its reply) plus the
+      // current user message. store.items still holds the full history for
+      // UI / localStorage; we only trim what goes up to the LLM.
+      conversationItems: tailWithPrevExchange(store.items),
+      buildInstructions: (deviceStatus, isFirstIteration, turnToolCalls) =>
+        buildInstructions({
+          presetId: store.activePresetId,
+          customPrompt,
+          deviceStatus,
+          isFirstIteration,
+          turnToolCalls,
+        }),
+      getDeviceStatus: bt.getStatus,
+      tools,
+      executor: executeTool,
+      transportConfig: resolveProviderConfig(),
+      sink,
+      signal: abort.signal,
+      requestPermission,
+    });
+
+    store.items.push(...finalItems);
+  } catch (err: any) {
+    // Drop any in-flight streamed bubble regardless of the failure mode.
+    sink.discardPendingBubble();
+
+    if (isAbortError(err) || abort.signal.aborted) {
+      // User pressed stop. Render a short note, persist it so reloads show
+      // a complete pair, but do NOT emit cb.onError (not a real error).
+      const note = '⏹ 已手动中止';
+      sink.onTextInline(note);
+      store.items.push({ role: 'assistant', content: note });
+    } else {
+      console.error('[conversation] runTurn failed:', err);
+      const friendly = classifyError(err);
+      cb.onError(friendly);
+      // Persist as assistant item so reloads show a complete user/assistant
+      // pair instead of an orphan user message at the tail.
+      store.items.push({ role: 'assistant', content: friendly });
+    }
+  } finally {
+    currentAbort = null;
+    cb.onTypingEnd();
+
+    if (store.current) {
+      store.current.items = [...store.items];
+      store.current.title = history.generateTitle(store.items);
+      store.current.updatedAt = Date.now();
+      history.saveConversation(store.current);
+      cb.onHistoryChange();
+    }
+
+    pruneItems();
+    store.isProcessing = false;
+  }
 }

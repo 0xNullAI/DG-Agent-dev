@@ -14,6 +14,7 @@ import * as settings from './settings';
 import * as sidebar from './sidebar';
 import { updateDeviceUI } from './device';
 import { initUpdateCheck } from './update-check';
+import { askPermission, closeActiveDialog } from './permission-dialog';
 
 // ---------------------------------------------------------------------------
 // DOM helper (shared across ui modules)
@@ -262,10 +263,13 @@ function showWelcomeMessage(): void {
 // ---------------------------------------------------------------------------
 
 async function handleSendMessage(text: string): Promise<void> {
-  chat.setInputEnabled(false);
+  chat.setChatBusy(true);
   const customPrompt = ($('custom-system-prompt') as HTMLTextAreaElement | null)?.value || '';
-  await conversation.sendMessage(text, customPrompt);
-  chat.setInputEnabled(true);
+  try {
+    await conversation.sendMessage(text, customPrompt);
+  } finally {
+    chat.setChatBusy(false);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -314,15 +318,25 @@ export function boot(): void {
     onUserMessage: (text) => chat.addUserMessage(text),
     onAssistantStream: (text, msgId) => chat.addAssistantMessage(text, msgId),
     onAssistantFinalize: (msgId) => chat.finalizeAssistantMessage(msgId),
+    onAssistantDiscard: (msgId) => chat.removeAssistantMessage(msgId),
     onToolCall: (name, args, result) => chat.addToolNotification(name, args, result),
     onTypingStart: () => chat.showTyping(),
     onTypingEnd: () => chat.hideTyping(),
-    onError: (msg) => chat.addAssistantMessage(`出错了: ${msg}`),
+    onError: (msg) => chat.addAssistantMessage(msg),
     onHistoryChange: () => sidebar.renderList(),
+    onRequestPermission: (name, args) => askPermission(name, args),
   });
 
   // Init sub-modules
-  chat.initChat({ onSendMessage: handleSendMessage });
+  chat.initChat({
+    onSendMessage: handleSendMessage,
+    onAbort: () => {
+      // Close any open permission dialog first so its promise resolves as
+      // 'deny' and the runner can unwind cleanly into the abort branch.
+      closeActiveDialog();
+      conversation.abortCurrent();
+    },
+  });
   settings.init(
     () => conversation.getActivePresetId(),
     () => ($('custom-system-prompt') as HTMLTextAreaElement | null)?.value || '',

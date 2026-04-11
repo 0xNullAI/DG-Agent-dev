@@ -14,26 +14,15 @@ export const PROVIDERS: ProviderDef[] = [
   {
     id: 'free',
     name: '免费体验',
-    hint: '无需 API Key，每分钟限 10 条。请根据所在地区选择线路。',
-    fields: [
-      {
-        key: 'region',
-        label: '代理线路',
-        type: 'select',
-        default: 'cn',
-        options: [
-          { value: 'cn', label: '阿里云' },
-          { value: 'intl', label: 'Cloudflare' },
-        ],
-      },
-    ],
+    hint: '无需 API Key，每分钟限 10 条。使用阿里云线路。',
+    fields: [],
   },
   {
     id: 'qwen',
     name: '通义千问',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
-      { key: 'model', label: '模型', type: 'text', placeholder: 'qwen3.5-flash' },
+      { key: 'model', label: '模型', type: 'text', placeholder: 'qwen3.5-plus' },
     ],
   },
   {
@@ -46,6 +35,15 @@ export const PROVIDERS: ProviderDef[] = [
     ],
   },
   {
+    id: 'doubao',
+    name: '豆包',
+    hint: '火山方舟 Responses API。model 填 Endpoint ID（如 ep-xxx）或模型 ID（如 doubao-seed-2-0-mini-260215）。',
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'ARK API Key' },
+      { key: 'model', label: '模型 / Endpoint ID', type: 'text', placeholder: 'doubao-seed-2-0-mini-260215' },
+    ],
+  },
+  {
     id: 'custom',
     name: '自定义',
     hint: '自定义模型、API Key 和接口地址',
@@ -53,6 +51,16 @@ export const PROVIDERS: ProviderDef[] = [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
       { key: 'model', label: '模型', type: 'text', placeholder: 'model-name' },
       { key: 'baseUrl', label: 'Base URL', type: 'url', placeholder: 'https://api.example.com/v1' },
+      {
+        key: 'useStrict',
+        label: 'strict 模式',
+        type: 'select',
+        default: 'true',
+        options: [
+          { value: 'true', label: '开启（OpenAI 兼容后端推荐）' },
+          { value: 'false', label: '关闭（后端不兼容时选此）' },
+        ],
+      },
     ],
   },
 ];
@@ -80,6 +88,25 @@ export function loadSettings(): AppSettings {
         parsed.maxStrengthB = legacy ?? DEFAULT_MAX_STRENGTH;
       }
       delete parsed.maxStrength;
+
+      // Default + self-heal the permission mode. Only 'ask' and 'timed'
+      // are valid persisted values: 'always' is session-scoped and lives in
+      // memory only, so any stale 'always' from an earlier build or a
+      // previous session must be downgraded to 'ask' on load.
+      if (parsed.permissionMode !== 'ask' && parsed.permissionMode !== 'timed') {
+        parsed.permissionMode = 'ask';
+        delete parsed.permissionModeExpiresAt;
+      }
+      // Expired timed windows auto-revert so users don't come back to an
+      // already-unlocked session hours later.
+      if (
+        parsed.permissionMode === 'timed' &&
+        (typeof parsed.permissionModeExpiresAt !== 'number' ||
+          Date.now() >= parsed.permissionModeExpiresAt)
+      ) {
+        parsed.permissionMode = 'ask';
+        delete parsed.permissionModeExpiresAt;
+      }
       return parsed;
     }
   } catch (_) { /* */ }
@@ -91,6 +118,7 @@ export function loadSettings(): AppSettings {
     backgroundBehavior: 'stop',
     maxStrengthA: DEFAULT_MAX_STRENGTH,
     maxStrengthB: DEFAULT_MAX_STRENGTH,
+    permissionMode: 'ask',
   };
 }
 

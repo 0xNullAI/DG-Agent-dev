@@ -1,63 +1,27 @@
 /**
- * prompts.ts — System prompts and persona presets for DG-Agent.
- * Separated from tool execution for easier management.
+ * prompts.ts — Persona presets and the single entry point for building the
+ * system instructions sent to the LLM on every API call.
+ *
+ * The agent uses ONLY ONE prompt-injection location: the Responses API
+ * `instructions` field. The conversation `input` array stays a clean stream
+ * of user / assistant / tool items with no synthetic suffixes.
+ *
+ * `buildInstructions` is called once per LLM iteration and returns a string
+ * composed of:
+ *   1. {persona}                                    — static across the turn
+ *   2. [设备能力 — 静态参考]                          — static across all turns
+ *   3. [当前设备状态 — 系统观察]                      — refreshed every iter
+ *   4. [本回合策略]                                   — only on iter 0
  */
 
-import type { PromptPreset } from '../types';
-import { tools } from './tools';
+import type { DeviceState, PromptPreset } from '../types';
+import { MAX_ADJUST_STRENGTH_PER_TURN } from './policies';
+import { getMaxStrength } from './providers';
 
-/**
- * 从 tools 定义自动生成工具清单，确保 prompt 与 tool schema 始终同步。
- */
-function buildToolList(): string {
-  return tools.map((t) => `  - ${t.name}: ${t.description}`).join('\n');
-}
+// ---------------------------------------------------------------------------
+// Persona presets
+// ---------------------------------------------------------------------------
 
-/**
- * 设备能力说明 — 作为系统后缀追加到所有 prompt 后面。
- * 让 AI 在任何人设下都知道如何使用郊狼设备。
- */
-export function getDeviceSuffix(): string {
-  return `
-
-[系统能力说明 — 以下信息对用户不可见]
-你拥有一台已通过蓝牙连接的 DG-Lab 郊狼 (Coyote 3.0) 电脉冲设备，可以通过工具调用来实时控制它。
-
-可用工具（与你收到的 function 定义完全一致，请勿编造其他工具名；详细参数与用法见每个工具的 description）：
-${buildToolList()}
-
-典型操作流程：
-- 开始/调整刺激 → play（一次设定强度+波形）
-- 微调强度且不换波形 → add_strength
-- 需要自定义节奏 → design_wave
-- 结束刺激 → stop（一次关闭强度+波形）
-- 查看当前状态 → get_status
-
-设备参数：
-- 两个独立输出通道：A 和 B，可分别设置强度和波形
-- 强度范围 0-200，务必从低强度(5-15)开始，根据用户反馈逐步调整
-- 可用波形预设：breath(呼吸/渐强渐弱)、tide(潮汐/波浪起伏)、pulse_low(低脉冲/轻柔)、pulse_mid(中脉冲/适中)、pulse_high(高脉冲/强烈)、tap(轻拍/节奏感)
-- 安全限制：设备强度会被自动限制在用户设定的安全上限内，无法超过
-- 随时关注用户的反馈和感受，及时调整强度和波形
-- 善于将语言描述与设备操作结合，用文字营造氛围的同时配合实际的体感刺激
-
-⚠️ 工具调用铁律（违反则视为严重错误）：
-- 【绝对铁律】每一次回复都【必须】调用至少一个工具，零例外、零变通。禁止出现"只回复文字、不调任何工具"的情况。即使是问候、闲聊、情感交流、普通对话，也必须先调用 get_status 再开口。没有合适的操作工具时，get_status 就是你的兜底选择。违反此条视为严重错误
-- 当你决定对设备进行任何操作时，必须先调用工具，等待返回结果，然后再回复用户。严禁在未调用工具的情况下描述操作效果
-- 正确顺序：调用工具 → 收到结果 → 根据结果回复。绝对不能跳过调用直接回复
-- 你只能通过调用工具来控制设备。在回复文字中描述操作（如"我把强度设为20"）不会对设备产生任何效果
-- 如果你没有实际调用工具，绝对不能声称已经执行了操作。说了不等于做了
-- 每次工具调用后，你必须根据返回结果中的实际设备状态来回复用户。不要编造或假设结果
-- 如果工具返回了错误或与预期不同的结果，必须如实告知用户，不要假装操作成功
-- 强度和波形必须同时管理——这一点由工具设计强制执行：
-  · 开始或调整刺激 → 一律用 play（同时传 strength 和 preset/frequency+intensity），禁止想象有"只设强度"的工具
-  · 结束刺激 → 一律用 stop，禁止用 play(strength=0) 或任何变通手段来"关"设备
-  · 想只动强度不换波形 → 用 add_strength（仅限微调场景）`;
-}
-
-/**
- * 预设场景人设
- */
 export const PROMPT_PRESETS: PromptPreset[] = [
   {
     id: 'gentle',
@@ -126,7 +90,7 @@ export const PROMPT_PRESETS: PromptPreset[] = [
     prompt: `你是一个极其擅长节奏控制的引导者，专精于边缘控制(Edging)的艺术。你的风格是：
 
 - 核心技巧是"攀升-暂停-回落-再攀升"的循环，每次都推得更近一些
-- 对强度的调控极其精细，善用 add_strength 做微调（+2、+3的细微变化）
+- 对强度的调控极其精细，善用 adjust_strength 做微调（+2、+3的细微变化）
 - 波形选择讲究层次：初期用breath/tide铺垫，中期用pulse_mid推进，高潮前用design_wave自定义渐强曲线
 - 善于用语言引导对方关注身体感受："感受那一阵一阵的脉冲……慢慢来，不要急……"
 - 在关键节点突然降低或停止，享受那种"被拉回来"的落差感，然后从更高的起点重新开始
@@ -150,21 +114,113 @@ export const PROMPT_PRESETS: PromptPreset[] = [
   },
 ];
 
-/** 默认选中的预设 ID */
 export const DEFAULT_PRESET_ID = 'gentle';
 
+// ---------------------------------------------------------------------------
+// Static blocks (built once at module load)
+// ---------------------------------------------------------------------------
+
+const DEVICE_BLOCK = `[设备]
+你控制一台已通过蓝牙连接的 DG-Lab 郊狼 (Coyote 3.0) 电脉冲设备，双通道 A / B 独立控制。设备操作必须通过工具完成——在文字里描述操作不会真的影响设备。`;
+
+const BEHAVIOR_RULES = `[行为规则]
+  1. 需要操作设备时，先调用对应工具，再生成文字回复
+  2. 回复设备状态时，只引用 [当前设备状态] 和工具返回值中的数字
+  3. adjust_strength 本回合最多调用 ${MAX_ADJUST_STRENGTH_PER_TURN} 次
+  4. 工具返回错误或被用户拒绝时，如实告知用户，不要假装成功或立即重试`;
+
+const FIRST_ITERATION_STRATEGY = `[本回合策略 — 仅本回合首次响应生效]
+  - 涉及设备操作（开始、调整、停止刺激等）时，先调用对应工具再生成文字回复
+  - 只是闲聊、问答或给建议时，直接生成文字回复即可——当前设备状态已在上方 [当前设备状态] 块里提供，不需要调用工具去"查一下"`;
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/** One tool call already executed in the current turn. */
+export interface TurnToolCall {
+  name: string;
+  /** Raw JSON args string from the model — small enough to inline verbatim. */
+  argsJson: string;
+}
+
+export interface BuildInstructionsOptions {
+  presetId: string;
+  customPrompt?: string;
+  deviceStatus: DeviceState;
+  isFirstIteration: boolean;
+  /** Tool calls already made earlier in this same user turn. Empty on iter 0. */
+  turnToolCalls: readonly TurnToolCall[];
+}
+
 /**
- * 根据预设ID和可选的自定义prompt，构建最终的 System Prompt。
- * @param presetId — 预设 ID 或 'custom'
- * @param customPrompt — 自定义 prompt 内容（presetId='custom' 时使用）
+ * Build the full system instructions string for one LLM API call.
+ * Called once per iteration by the runner.
  */
-export function buildSystemPrompt(presetId: string, customPrompt?: string): string {
-  let persona = '';
-  if (presetId === 'custom') {
-    persona = customPrompt || '你是一个友好的助手。';
-  } else {
-    const preset = PROMPT_PRESETS.find((p) => p.id === presetId);
-    persona = preset ? preset.prompt : PROMPT_PRESETS[0].prompt;
+export function buildInstructions(opts: BuildInstructionsOptions): string {
+  const persona = resolvePersona(opts.presetId, opts.customPrompt);
+  const statusBlock = buildDeviceStatusBlock(opts.deviceStatus);
+  const turnUsageBlock = buildTurnToolUsageBlock(opts.turnToolCalls);
+  const blocks = [
+    persona,
+    DEVICE_BLOCK,
+    statusBlock,
+    turnUsageBlock,
+    BEHAVIOR_RULES,
+  ];
+  if (opts.isFirstIteration) {
+    blocks.push(FIRST_ITERATION_STRATEGY);
   }
-  return persona + getDeviceSuffix();
+  return blocks.join('\n\n──────────────────────────\n');
+}
+
+function resolvePersona(presetId: string, customPrompt?: string): string {
+  if (presetId === 'custom') {
+    return customPrompt || '你是一个友好的助手。';
+  }
+  const preset = PROMPT_PRESETS.find((p) => p.id === presetId);
+  return (preset || PROMPT_PRESETS[0]).prompt;
+}
+
+/**
+ * Render the list of tool calls already executed earlier in this turn so the
+ * model sees its own action history as ground truth before generating a
+ * reply. This is the structural anti-hallucination mechanism: instead of
+ * filtering the model's output for forbidden phrases after the fact, we make
+ * the relevant facts impossible to miss at generation time. If the list is
+ * empty, the model is told explicitly that it has done nothing this turn —
+ * any "已经/帮你/我把..." in the upcoming reply would be a lie about state
+ * the model itself can verify.
+ */
+function buildTurnToolUsageBlock(calls: readonly TurnToolCall[]): string {
+  if (calls.length === 0) {
+    return `[本回合已调用工具]\n  (无)`;
+  }
+  const lines = calls.map((c, i) => `  ${i + 1}. ${c.name}(${c.argsJson})`).join('\n');
+  return (
+    `[本回合已调用工具]\n` +
+    `${lines}\n` +
+    `生成回复前请对照此清单：你声称已完成的动作必须能在上面找到对应的调用。`
+  );
+}
+
+function buildDeviceStatusBlock(s: DeviceState): string {
+  const conn = s.connected
+    ? `已连接${s.deviceName ? `（${s.deviceName}）` : ''}`
+    : '未连接';
+  const battery = s.battery != null ? `${s.battery}%` : '未知';
+  // Effective ceiling = min(device-side BF limit, App-side user cap).
+  // The user cap is the hard ceiling — even if the device-side limit is
+  // higher, every write is clamped to this in tools.ts:clamp(). Showing it
+  // here lets the model plan within the actually-achievable range instead
+  // of repeatedly requesting values that get silently clamped.
+  const capA = Math.min(s.limitA, getMaxStrength('A'));
+  const capB = Math.min(s.limitB, getMaxStrength('B'));
+  return (
+    `[当前设备状态]\n` +
+    `  • 连接：${conn}\n` +
+    `  • 电量：${battery}\n` +
+    `  • A 通道：强度 ${s.strengthA} / 上限 ${capA}，波形${s.waveActiveA ? '活跃' : '停止'}\n` +
+    `  • B 通道：强度 ${s.strengthB} / 上限 ${capB}，波形${s.waveActiveB ? '活跃' : '停止'}`
+  );
 }
