@@ -46,6 +46,8 @@ export class QQAdapter implements PlatformAdapter {
   private shouldReconnect = false;
   private reconnectDelay = RECONNECT_BASE_MS;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Bot's own QQ user ID, learned from the first event's self_id field. */
+  private selfId: string | null = null;
 
   constructor(config: QQAdapterConfig) {
     this.config = config;
@@ -199,6 +201,12 @@ export class QQAdapter implements PlatformAdapter {
       return;
     }
 
+    // Learn bot's own QQ ID from the first event
+    if (!this.selfId && (data as any).self_id) {
+      this.selfId = String((data as any).self_id);
+      console.log(`[QQ] Bot self_id: ${this.selfId}`);
+    }
+
     if (data.post_type !== "message") return;
 
     const userIdStr = String(data.user_id);
@@ -209,11 +217,16 @@ export class QQAdapter implements PlatformAdapter {
       if (!this.config.allowUsers.includes(userIdStr)) return;
     } else if (data.message_type === "group") {
       if (groupIdStr === null || !this.config.allowGroups.includes(groupIdStr)) return;
+      // Group messages must @ the bot to trigger
+      if (!this.isAtBot(data)) return;
     } else {
       return;
     }
 
-    const text = data.raw_message;
+    // Strip [CQ:at,qq=xxx] segments targeting the bot from the text
+    const text = this.stripAtBot(data.raw_message);
+    if (!text) return; // Nothing left after stripping @
+
     const platformUserId =
       data.message_type === "group" ? `${GROUP_PREFIX}${groupIdStr}` : userIdStr;
 
@@ -239,5 +252,21 @@ export class QQAdapter implements PlatformAdapter {
         console.log("[QQ] Handler error", err);
       }
     }
+  }
+
+  /** Check if a group message contains an @mention targeting the bot. */
+  private isAtBot(data: OneBotMessageEvent): boolean {
+    if (!this.selfId) return false;
+    // message array contains { type: 'at', data: { qq: '12345' } } segments
+    return data.message.some(
+      (seg) => seg.type === 'at' && seg.data.qq === this.selfId,
+    );
+  }
+
+  /** Remove [CQ:at,qq=<selfId>] from raw_message and trim whitespace. */
+  private stripAtBot(raw: string): string {
+    if (!this.selfId) return raw.trim();
+    const pattern = new RegExp(`\\[CQ:at,qq=${this.selfId}\\]`, 'g');
+    return raw.replace(pattern, '').trim();
   }
 }
