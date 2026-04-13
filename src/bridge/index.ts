@@ -81,6 +81,7 @@ export const bridgeSink: AgentSink = {
     if (currentOrigin && accumulatedText) {
       const { adapter, userId } = currentOrigin;
       const text = accumulatedText;
+      emitLog(`→ AI: ${text.slice(0, 80)}${text.length > 80 ? '…' : ''}`);
       adapter.sendMessage(userId, text).catch((err) => {
         console.error('[Bridge] Failed to send response:', err);
       });
@@ -100,13 +101,8 @@ export const bridgeSink: AgentSink = {
     });
   },
 
-  onToolCall(name: string, _args: Record<string, unknown>, result: string): void {
-    if (!currentOrigin) return;
-    const { adapter, userId } = currentOrigin;
-    const msg = `[工具] ${name}: ${result}`;
-    adapter.sendMessage(userId, msg).catch((err) => {
-      console.error('[Bridge] Failed to send tool notification:', err);
-    });
+  onToolCall(_name: string, _args: Record<string, unknown>, _result: string): void {
+    // Intentionally silent — QQ/Telegram users don't need tool call details.
   },
 };
 
@@ -162,6 +158,7 @@ export async function initBridge(
   processor: (text: string) => Promise<void>,
 ): Promise<void> {
   const settings = loadBridgeSettings();
+  console.log('[Bridge] Settings:', JSON.stringify(settings));
   if (!settings.enabled) {
     console.log('[Bridge] Disabled, skipping init.');
     return;
@@ -235,6 +232,22 @@ export function getAdapterStatus(): Array<{ platform: string; connected: boolean
   return adapters.map((a) => ({ platform: a.platform, connected: a.connected }));
 }
 
+/** Whether bridge is active (at least one adapter connected). */
+export function isActive(): boolean {
+  return adapters.length > 0 && adapters.some((a) => a.connected);
+}
+
+/** Callback for UI overlay updates — set by the UI layer. */
+let onBridgeLogFn: ((text: string) => void) | null = null;
+
+export function setOnBridgeLog(fn: ((text: string) => void) | null): void {
+  onBridgeLogFn = fn;
+}
+
+function emitLog(text: string): void {
+  if (onBridgeLogFn) onBridgeLogFn(text);
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -242,6 +255,7 @@ export function getAdapterStatus(): Array<{ platform: string; connected: boolean
 function handleIncomingMessage(msg: PlatformMessage): void {
   if (!queue) return;
   console.log(`[Bridge] Incoming from ${msg.platform}/${msg.userName}: ${msg.text.slice(0, 50)}`);
+  emitLog(`← ${msg.platform.toUpperCase()}/${msg.userName}: ${msg.text.slice(0, 80)}`);
   queue.enqueue(msg.text, {
     platform: msg.platform,
     userId: msg.userId,

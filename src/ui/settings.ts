@@ -19,7 +19,7 @@ import * as bluetooth from '../agent/bluetooth';
 import * as waveforms from '../agent/waveforms';
 import * as theme from './theme';
 import { updateStrengthCapMarker } from './device';
-import { $ } from './index';
+import { $, updateBridgeOverlay } from './index';
 import {
   DEFAULT_BRIDGE_SETTINGS,
   type BridgeSettings,
@@ -619,6 +619,9 @@ function saveBridgeSettings(bs: BridgeSettings): void {
   persistSettings(saved);
 }
 
+type BridgeTab = 'qq' | 'telegram';
+let activeBridgeTab: BridgeTab = 'qq';
+
 function renderBridgePanel(): void {
   const container = $('settings-panel-bridge');
   if (!container) return;
@@ -626,7 +629,10 @@ function renderBridgePanel(): void {
 
   const bs = loadBridgeSettings();
 
-  // Adapter status
+  // ---- Top row: status + save button ----
+  const topRow = document.createElement('div');
+  topRow.className = 'bridge-top-row';
+
   const statusRow = document.createElement('div');
   statusRow.className = 'bridge-status-row';
   const statuses = getAdapterStatus();
@@ -640,79 +646,8 @@ function renderBridgePanel(): void {
   } else {
     statusRow.textContent = '未启用任何平台';
   }
-  container.appendChild(statusRow);
+  topRow.appendChild(statusRow);
 
-  // Master toggle
-  container.appendChild(makeToggleRow('启用社交平台桥接', bs.enabled, (on) => {
-    bs.enabled = on;
-    saveBridgeSettings(bs);
-  }));
-
-  // ---- QQ Section ----
-  const qqHeader = document.createElement('h4');
-  qqHeader.textContent = 'QQ (OneBot v11 / NapCat)';
-  qqHeader.className = 'bridge-section-header';
-  container.appendChild(qqHeader);
-
-  container.appendChild(makeToggleRow('启用 QQ', bs.qq.enabled, (on) => {
-    bs.qq.enabled = on;
-    saveBridgeSettings(bs);
-  }));
-
-  container.appendChild(makeInputRow('NapCat WebSocket 地址', bs.qq.wsUrl, 'ws://localhost:3001', (val) => {
-    bs.qq.wsUrl = val;
-    saveBridgeSettings(bs);
-  }));
-
-  container.appendChild(makeInputRow('允许的 QQ 用户号（逗号分隔）', bs.qq.allowUsers.join(','), '12345678,87654321', (val) => {
-    bs.qq.allowUsers = val.split(',').map((s) => s.trim()).filter(Boolean);
-    saveBridgeSettings(bs);
-  }));
-
-  container.appendChild(makeInputRow('允许的 QQ 群号（逗号分隔）', bs.qq.allowGroups.join(','), '', (val) => {
-    bs.qq.allowGroups = val.split(',').map((s) => s.trim()).filter(Boolean);
-    saveBridgeSettings(bs);
-  }));
-
-  container.appendChild(makePermModeRow('QQ 权限模式', bs.qq.permissionMode, (mode) => {
-    bs.qq.permissionMode = mode;
-    saveBridgeSettings(bs);
-  }));
-
-  // ---- Telegram Section ----
-  const tgHeader = document.createElement('h4');
-  tgHeader.textContent = 'Telegram';
-  tgHeader.className = 'bridge-section-header';
-  container.appendChild(tgHeader);
-
-  container.appendChild(makeToggleRow('启用 Telegram', bs.telegram.enabled, (on) => {
-    bs.telegram.enabled = on;
-    saveBridgeSettings(bs);
-  }));
-
-  container.appendChild(makeInputRow('Bot Token', bs.telegram.botToken, '123456:ABC-DEF...', (val) => {
-    bs.telegram.botToken = val;
-    saveBridgeSettings(bs);
-  }, 'password'));
-
-  container.appendChild(makeInputRow('CORS 代理 URL（可选）', bs.telegram.proxyUrl, 'https://your-proxy.com', (val) => {
-    bs.telegram.proxyUrl = val;
-    saveBridgeSettings(bs);
-  }));
-
-  container.appendChild(makeInputRow('允许的 Telegram 用户 ID（逗号分隔）', bs.telegram.allowUsers.join(','), '987654321', (val) => {
-    bs.telegram.allowUsers = val.split(',').map((s) => Number(s.trim())).filter((n) => n > 0);
-    saveBridgeSettings(bs);
-  }));
-
-  container.appendChild(makePermModeRow('Telegram 权限模式', bs.telegram.permissionMode, (mode) => {
-    bs.telegram.permissionMode = mode;
-    saveBridgeSettings(bs);
-  }));
-
-  // ---- Apply button ----
-  const actions = document.createElement('div');
-  actions.className = 'modal-actions';
   const applyBtn = document.createElement('button');
   applyBtn.className = 'btn-primary';
   applyBtn.textContent = '保存并重新连接';
@@ -724,6 +659,7 @@ function renderBridgePanel(): void {
       const { sendMessage } = await import('../agent/conversation');
       await initBridge((text) => sendMessage(text));
       applyBtn.textContent = '已连接 ✓';
+      updateBridgeOverlay();
       setTimeout(() => renderBridgePanel(), 1500);
     } catch (err) {
       applyBtn.textContent = '连接失败';
@@ -731,14 +667,123 @@ function renderBridgePanel(): void {
       setTimeout(() => renderBridgePanel(), 2000);
     }
   });
-  actions.appendChild(applyBtn);
-  container.appendChild(actions);
+  topRow.appendChild(applyBtn);
+  container.appendChild(topRow);
 
-  // Hint
+  // Master toggle
+  container.appendChild(makeToggleRow('启用社交平台桥接', bs.enabled, (on) => {
+    bs.enabled = on;
+    saveBridgeSettings(bs);
+  }));
+
+  // ---- Platform tabs ----
+  const tabBar = document.createElement('div');
+  tabBar.className = 'provider-tabs bridge-tabs';
+
+  const tabs: Array<{ id: BridgeTab; label: string; connected: boolean | null }> = [
+    { id: 'qq', label: 'QQ', connected: statuses.find((s) => s.platform === 'qq')?.connected ?? null },
+    { id: 'telegram', label: 'Telegram', connected: statuses.find((s) => s.platform === 'telegram')?.connected ?? null },
+  ];
+
+  tabs.forEach((t) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'provider-tab' + (t.id === activeBridgeTab ? ' active' : '');
+    btn.dataset.tab = t.id;
+    if (t.connected === true) btn.classList.add('tab-connected');
+    btn.textContent = t.label;
+    btn.addEventListener('click', () => {
+      activeBridgeTab = t.id;
+      tabBar.querySelectorAll<HTMLButtonElement>('.provider-tab').forEach((b) => {
+        b.classList.toggle('active', b.dataset.tab === t.id);
+      });
+      updateBridgeTabContent(container, bs);
+    });
+    tabBar.appendChild(btn);
+  });
+  container.appendChild(tabBar);
+
+  // ---- Tab content ----
+  const content = document.createElement('div');
+  content.id = 'bridge-tab-content';
+  container.appendChild(content);
+  updateBridgeTabContent(container, bs);
+}
+
+function updateBridgeTabContent(container: HTMLElement, bs: BridgeSettings): void {
+  const content = container.querySelector('#bridge-tab-content');
+  if (!content) return;
+  content.innerHTML = '';
+
+  if (activeBridgeTab === 'qq') {
+    renderQQTab(content as HTMLElement, bs);
+  } else {
+    renderTelegramTab(content as HTMLElement, bs);
+  }
+}
+
+function renderQQTab(content: HTMLElement, bs: BridgeSettings): void {
   const hint = document.createElement('p');
   hint.className = 'provider-hint';
-  hint.textContent = 'QQ 需要在本机运行 NapCat 并用手机 QQ 扫码登录。Telegram 需要先创建 Bot（@BotFather）获取 Token。保存后点击「保存并重新连接」生效。';
-  container.appendChild(hint);
+  hint.textContent = '需要在本机运行 NapCat 并用手机 QQ 扫码登录。NapCat 提供 OneBot v11 WebSocket 接口，默认端口 3001。';
+  content.appendChild(hint);
+
+  content.appendChild(makeToggleRow('启用 QQ', bs.qq.enabled, (on) => {
+    bs.qq.enabled = on;
+    saveBridgeSettings(bs);
+  }));
+
+  content.appendChild(makeInputRow('NapCat WebSocket 地址', bs.qq.wsUrl, 'ws://localhost:3001', (val) => {
+    bs.qq.wsUrl = val;
+    saveBridgeSettings(bs);
+  }));
+
+  content.appendChild(makeInputRow('允许的 QQ 用户号（逗号分隔）', bs.qq.allowUsers.join(','), '12345678,87654321', (val) => {
+    bs.qq.allowUsers = val.split(',').map((s) => s.trim()).filter(Boolean);
+    saveBridgeSettings(bs);
+  }));
+
+  content.appendChild(makeInputRow('允许的 QQ 群号（逗号分隔）', bs.qq.allowGroups.join(','), '', (val) => {
+    bs.qq.allowGroups = val.split(',').map((s) => s.trim()).filter(Boolean);
+    saveBridgeSettings(bs);
+  }));
+
+  content.appendChild(makePermModeRow('权限模式', bs.qq.permissionMode, (mode) => {
+    bs.qq.permissionMode = mode;
+    saveBridgeSettings(bs);
+  }));
+}
+
+function renderTelegramTab(content: HTMLElement, bs: BridgeSettings): void {
+  const hint = document.createElement('p');
+  hint.className = 'provider-hint';
+  hint.textContent = '在 Telegram 找 @BotFather 发 /newbot 创建机器人获取 Token。如遇 CORS 问题需填写代理 URL。';
+  content.appendChild(hint);
+
+  content.appendChild(makeToggleRow('启用 Telegram', bs.telegram.enabled, (on) => {
+    bs.telegram.enabled = on;
+    saveBridgeSettings(bs);
+  }));
+
+  content.appendChild(makeInputRow('Bot Token', bs.telegram.botToken, '123456:ABC-DEF...', (val) => {
+    bs.telegram.botToken = val;
+    saveBridgeSettings(bs);
+  }, 'password'));
+
+  content.appendChild(makeInputRow('CORS 代理 URL（可选）', bs.telegram.proxyUrl, 'https://your-proxy.com', (val) => {
+    bs.telegram.proxyUrl = val;
+    saveBridgeSettings(bs);
+  }));
+
+  content.appendChild(makeInputRow('允许的用户 ID（逗号分隔）', bs.telegram.allowUsers.join(','), '987654321', (val) => {
+    bs.telegram.allowUsers = val.split(',').map((s) => Number(s.trim())).filter((n) => n > 0);
+    saveBridgeSettings(bs);
+  }));
+
+  content.appendChild(makePermModeRow('权限模式', bs.telegram.permissionMode, (mode) => {
+    bs.telegram.permissionMode = mode;
+    saveBridgeSettings(bs);
+  }));
 }
 
 function makeToggleRow(label: string, value: boolean, onChange: (on: boolean) => void): HTMLDivElement {

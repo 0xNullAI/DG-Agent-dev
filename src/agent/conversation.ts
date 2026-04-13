@@ -342,17 +342,18 @@ async function runConversationTurn(
   ): Promise<'allow' | 'deny'> => {
     if (!requiresPermission(name)) return 'allow';
 
+    // Bridge-originated turn: use the per-platform permission setting,
+    // independent of the browser-side global permission mode.
+    if (isBridgeTurn()) {
+      const choice = await requestBridgePermission(name, args);
+      return recordChoice(name, choice);
+    }
+
     const mode = getEffectiveMode();
     if (mode === 'always' || mode === 'timed') return 'allow';
 
     // mode === 'ask'
     if (hasGrant(name)) return 'allow';
-
-    // Bridge-originated turn: ask via social platform message
-    if (isBridgeTurn()) {
-      const choice = await requestBridgePermission(name, args);
-      return recordChoice(name, choice);
-    }
 
     if (!cb.onRequestPermission) return 'allow';
     const choice = await cb.onRequestPermission(name, args);

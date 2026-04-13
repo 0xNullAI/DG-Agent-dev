@@ -2494,17 +2494,37 @@ body.safety-notice-open {
 }
 
 /* ===== Bridge (social platform) panel ===== */
-.bridge-section-header {
-  margin: 1rem 0 0.5rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--fg);
+.bridge-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+
+.bridge-top-row .btn-primary {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bridge-tabs {
+  margin-top: 0.5rem;
+}
+
+.bridge-tabs .provider-tab.tab-connected::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success, #3d3);
+  margin-left: 0.35rem;
+  vertical-align: middle;
 }
 
 .bridge-status-row {
   display: flex;
   gap: 0.75rem;
-  padding: 0.5rem 0;
   font-size: 0.85rem;
   color: var(--fg-muted);
 }
@@ -2526,4 +2546,84 @@ body.safety-notice-open {
 
 .bridge-status-dot.connected::before {
   background: var(--color-success, #3d3);
+}
+
+#bridge-tab-content {
+  padding-top: 0.5rem;
+}
+
+/* ===== Bridge overlay (main page) ===== */
+.bridge-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 2rem 1rem;
+}
+
+.bridge-overlay.hidden {
+  display: none;
+}
+
+.bridge-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 500px;
+  width: 100%;
+}
+
+.bridge-overlay-icon {
+  font-size: 3rem;
+}
+
+.bridge-overlay-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bridge-overlay-platforms {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.bridge-platform-tag {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.bridge-overlay-hint {
+  font-size: 0.85rem;
+  color: var(--text-2);
+  text-align: center;
+}
+
+.bridge-overlay-log {
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.bridge-log-line {
+  white-space: pre-wrap;
+  word-break: break-all;
 }

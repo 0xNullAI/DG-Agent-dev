@@ -267,6 +267,57 @@ function showWelcomeMessage(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Bridge overlay
+// ---------------------------------------------------------------------------
+
+const MAX_LOG_LINES = 20;
+
+export function updateBridgeOverlay(): void {
+  const overlay = $('bridge-overlay');
+  const chatContainer = $('chat-container');
+  const inputArea = $('input-area');
+  if (!overlay) return;
+
+  const active = bridge.isActive();
+  overlay.classList.toggle('hidden', !active);
+  if (chatContainer) chatContainer.classList.toggle('hidden', active);
+  if (inputArea) inputArea.classList.toggle('hidden', active);
+
+  if (active) {
+    // Update platform list
+    const platformsEl = $('bridge-overlay-platforms');
+    if (platformsEl) {
+      platformsEl.innerHTML = '';
+      for (const s of bridge.getAdapterStatus()) {
+        if (!s.connected) continue;
+        const tag = document.createElement('span');
+        tag.className = 'bridge-platform-tag';
+        tag.textContent = s.platform.toUpperCase();
+        platformsEl.appendChild(tag);
+      }
+    }
+
+    // Wire up log callback
+    bridge.setOnBridgeLog((text) => {
+      const logEl = $('bridge-overlay-log');
+      if (!logEl) return;
+      const line = document.createElement('div');
+      line.className = 'bridge-log-line';
+      const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      line.textContent = `[${time}] ${text}`;
+      logEl.appendChild(line);
+      // Trim old lines
+      while (logEl.children.length > MAX_LOG_LINES) {
+        logEl.removeChild(logEl.firstChild!);
+      }
+      logEl.scrollTop = logEl.scrollHeight;
+    });
+  } else {
+    bridge.setOnBridgeLog(null);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Message handler
 // ---------------------------------------------------------------------------
 
@@ -442,7 +493,9 @@ export function boot(): void {
 
   // Social platform bridge — connect to QQ / Telegram if configured.
   // Errors are non-fatal; the app works fine without the bridge.
-  bridge.initBridge((text) => conversation.sendMessage(text)).catch((err) => {
+  bridge.initBridge((text) => conversation.sendMessage(text)).then(() => {
+    updateBridgeOverlay();
+  }).catch((err) => {
     console.error('[Boot] Bridge init failed (non-fatal):', err);
   });
 }

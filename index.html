@@ -158,6 +158,17 @@
 
         <!-- Main chat area -->
         <main id="main">
+          <!-- Bridge mode overlay (shown when bridge is active) -->
+          <div id="bridge-overlay" class="bridge-overlay hidden">
+            <div class="bridge-overlay-content">
+              <div class="bridge-overlay-icon">🔗</div>
+              <div class="bridge-overlay-title">桥接模式已开启</div>
+              <div id="bridge-overlay-platforms" class="bridge-overlay-platforms"></div>
+              <div class="bridge-overlay-hint">消息将通过社交平台收发，网页聊天已暂停</div>
+              <div id="bridge-overlay-log" class="bridge-overlay-log"></div>
+            </div>
+          </div>
+
           <div id="chat-container">
             <div id="messages"></div>
           </div>
