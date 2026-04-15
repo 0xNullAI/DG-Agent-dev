@@ -374,14 +374,17 @@ function handleAsrMessage(msg: any): void {
 
   if (header.event === 'result-generated') {
     const output = payload.output || {};
-    const sentence = output.sentence;
+    // Paraformer puts the sentence under `output.sentence`; Gummy puts it
+    // under `output.transcription` (translations live in `output.translations`
+    // but we only keep `transcription_enabled`). Accept either.
+    const sentence = output.transcription || output.sentence;
     if (sentence && typeof sentence.text === 'string') {
       const current = sentence.text;
-      // Paraformer streams each sentence as an in-progress text, then signals
-      // completion via either `sentence_end: true` or a non-null `end_time`.
-      // On completion the next `result-generated` starts a fresh sentence at
-      // `sentence.text = ""`, so we have to commit completed sentences into a
-      // running prefix instead of letting the latest one overwrite everything.
+      // Both models signal completion via `sentence_end: true`; Paraformer
+      // may also supply a non-null `end_time`. On completion the next
+      // `result-generated` starts a fresh sentence at `text = ""`, so commit
+      // completed sentences into a running prefix instead of letting the
+      // latest one overwrite everything.
       const isEnd =
         sentence.sentence_end === true ||
         (typeof sentence.end_time === 'number' && sentence.end_time > 0);
