@@ -42,7 +42,8 @@ const SPEECH_CONFIRM_FRAMES = 3;
 let ws: WebSocket | null = null;
 let mediaStream: MediaStream | null = null;
 let audioContext: AudioContext | null = null;
-let scriptNode: ScriptProcessorNode | null = null;
+let workletNode: AudioWorkletNode | null = null;
+let workletModuleUrl: string | null = null;
 let status: VoiceStatus = 'idle';
 let statusCb: VoiceStatusCallback | null = null;
 let partialCb: PartialTranscriptCallback | null = null;
@@ -136,16 +137,22 @@ export async function startRecording(): Promise<void> {
     });
     console.log('[ASR] microphone acquired');
 
-    // Set up audio processing for raw PCM extraction
+    // Set up audio processing for raw PCM extraction via AudioWorklet
     audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
     const source = audioContext.createMediaStreamSource(mediaStream);
 
-    // ScriptProcessorNode (widely supported, including Safari)
-    scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+    if (!workletModuleUrl) {
+      workletModuleUrl = URL.createObjectURL(
+        new Blob([PCM_WORKLET_SOURCE], { type: 'application/javascript' }),
+      );
+    }
+    await audioContext.audioWorklet.addModule(workletModuleUrl);
+    workletNode = new AudioWorkletNode(audioContext, 'pcm-capture-processor');
+
     let audioChunkCount = 0;
-    scriptNode.onaudioprocess = (e) => {
+    workletNode.port.onmessage = (e) => {
+      const float32 = e.data as Float32Array;
       if (ws?.readyState !== WebSocket.OPEN || finishing) return;
-      const float32 = e.inputBuffer.getChannelData(0);
       const int16 = float32ToInt16(float32);
       ws.send(int16.buffer as ArrayBuffer);
       audioChunkCount++;
@@ -189,8 +196,10 @@ export async function startRecording(): Promise<void> {
         speechFrames = Math.max(0, speechFrames - 1);
       }
     };
-    source.connect(scriptNode);
-    scriptNode.connect(audioContext.destination);
+    source.connect(workletNode);
+    // Connecting to destination keeps the worklet running on some browsers;
+    // no audible output since the worklet emits no samples.
+    workletNode.connect(audioContext.destination);
 
     // Connect WebSocket to proxy
     const wsUrl = resolveWsUrl('asr');
@@ -291,8 +300,11 @@ export function stopRecording(): Promise<string> {
     console.log('[ASR] -> finish-task (waiting for final transcript)');
 
     // Stop audio processing
-    scriptNode?.disconnect();
-    scriptNode = null;
+    if (workletNode) {
+      workletNode.port.onmessage = null;
+      workletNode.disconnect();
+      workletNode = null;
+    }
     audioContext?.close().catch(() => {});
     audioContext = null;
     mediaStream?.getTracks().forEach((t) => t.stop());
@@ -405,8 +417,11 @@ function resolveWsUrl(service: 'asr' | 'tts'): string {
 }
 
 function cleanup(): void {
-  scriptNode?.disconnect();
-  scriptNode = null;
+  if (workletNode) {
+    workletNode.port.onmessage = null;
+    workletNode.disconnect();
+    workletNode = null;
+  }
   audioContext?.close().catch(() => {});
   audioContext = null;
   mediaStream?.getTracks().forEach((t) => t.stop());
@@ -437,3 +452,40 @@ function float32ToInt16(float32: Float32Array): Int16Array {
 
 // Re-export resolveWsUrl for TTS module
 export { resolveWsUrl as _resolveWsUrl };
+
+// ---------------------------------------------------------------------------
+// AudioWorklet processor source (replaces deprecated ScriptProcessorNode)
+// ---------------------------------------------------------------------------
+// Accumulates mono Float32 samples into 4096-frame batches, then posts the
+// batch to the main thread where it's converted to Int16 PCM and sent to the
+// ASR WebSocket. Buffer size matches the old ScriptProcessor so VAD timings
+// (SPEECH_CONFIRM_FRAMES etc.) remain calibrated against the same ~256 ms
+// frame cadence at 16 kHz.
+
+const PCM_WORKLET_SOURCE = `
+class PcmCaptureProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._batchSize = 4096;
+    this._buffer = new Float32Array(this._batchSize);
+    this._filled = 0;
+  }
+  process(inputs) {
+    const channel = inputs[0] && inputs[0][0];
+    if (!channel) return true;
+    let offset = 0;
+    while (offset < channel.length) {
+      const take = Math.min(this._batchSize - this._filled, channel.length - offset);
+      this._buffer.set(channel.subarray(offset, offset + take), this._filled);
+      this._filled += take;
+      offset += take;
+      if (this._filled >= this._batchSize) {
+        this.port.postMessage(this._buffer.slice(0));
+        this._filled = 0;
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('pcm-capture-processor', PcmCaptureProcessor);
+`;
