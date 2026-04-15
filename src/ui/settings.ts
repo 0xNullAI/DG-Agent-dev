@@ -966,7 +966,15 @@ const VOICE_SPEAKERS: Array<{ id: string; label: string }> = [
 
 export function loadVoiceSettings(): VoiceSettings {
   const saved = loadSettings();
-  return { ...DEFAULT_VOICE_SETTINGS, ...(saved.voice || {}) };
+  const merged = { ...DEFAULT_VOICE_SETTINGS, ...(saved.voice || {}) };
+  // Migrate: a speaker cached from a prior session (e.g. 'Chelsie' from a
+  // different CosyVoice model generation) is incompatible with the current
+  // model and would cause task-failed 418. Fall back to the default when
+  // the saved value isn't in the allowed list.
+  if (!VOICE_SPEAKERS.some((s) => s.id === merged.speaker)) {
+    merged.speaker = DEFAULT_VOICE_SETTINGS.speaker;
+  }
+  return merged;
 }
 
 function saveVoiceSettings(vs: VoiceSettings): void {
