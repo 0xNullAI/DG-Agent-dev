@@ -248,7 +248,7 @@ export function SettingsPanel({
           </label>
         </section>
 
-        <section className="settings-group">
+        <section className="settings-group mt-6">
           <h3 className="settings-group-title">模式与提示词</h3>
 
           <label>
