@@ -110,7 +110,6 @@ export function App() {
 
   const [updateStatus, setUpdateStatus] = useState<UpdateCheckerStatus>(() => updateChecker.getStatus());
   const sendTextMessageRef = useRef<((message: string) => Promise<'sent' | 'aborted' | 'failed'>) | null>(null);
-  const hasInitializedSettingsAutoSaveRef = useRef(false);
 
   const voice = useVoiceController({
     speechRecognition,
@@ -556,19 +555,15 @@ export function App() {
     };
   }, [autoDismissToastKey]);
 
-  useEffect(() => {
-    if (!hasInitializedSettingsAutoSaveRef.current) {
-      hasInitializedSettingsAutoSaveRef.current = true;
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
+  function handleControlOpenChange(nextOpen: boolean): void {
+    if (controlOpen && !nextOpen && JSON.stringify(settingsDraft) !== JSON.stringify(settings)) {
       const next = settingsStore.save(settingsDraft);
       setSettings(next);
-    }, 250);
+      setSettingsDraft(next);
+    }
 
-    return () => window.clearTimeout(timer);
-  }, [settingsDraft, settingsStore]);
+    setControlOpen(nextOpen);
+  }
 
   function renderInspectorPanel() {
     switch (inspectorTab) {
@@ -770,7 +765,7 @@ export function App() {
           </section>
         )}
 
-        <Sheet open={controlOpen} onOpenChange={setControlOpen}>
+        <Sheet open={controlOpen} onOpenChange={handleControlOpenChange}>
           <SheetContent side="right" className="flex h-full max-w-[520px] flex-col overflow-hidden bg-[var(--bg-elevated)] p-5 [&>button]:hidden">
             <SheetHeader>
               <div className="flex items-center justify-between gap-4">
