@@ -85,10 +85,15 @@ export function SafetyNoticeModal({ onAccept, countdownSeconds = 10 }: SafetyNot
         <div className="safety-notice-grid">
           {SAFETY_NOTICE_SECTIONS.map((section) => (
             <section key={section.title} className="safety-notice-section">
-              <h3>{section.title}</h3>
+              <div className="safety-notice-section-head">
+                <h3>{section.title}</h3>
+              </div>
               <ul className="safety-notice-list">
-                {section.items.map((item) => (
-                  <li key={item}>{item}</li>
+                {section.items.map((item, index) => (
+                  <li key={item} className="safety-notice-item">
+                    <span className="safety-notice-item-index">{index + 1}</span>
+                    <span>{item}</span>
+                  </li>
                 ))}
               </ul>
             </section>
@@ -98,7 +103,6 @@ export function SafetyNoticeModal({ onAccept, countdownSeconds = 10 }: SafetyNot
         <footer className="safety-notice-footer">
           <div className="safety-notice-footer-copy">
             <strong>继续即表示你已阅读并愿意自行承担使用风险。</strong>
-            <span>{remainingSeconds > 0 ? `请等待 ${remainingSeconds} 秒后确认。` : '倒计时结束，可以继续进入应用。'}</span>
             <label className="safety-notice-checkbox">
               <Checkbox checked={dontShowAgain} onCheckedChange={(checked) => setDontShowAgain(Boolean(checked))} />
               <span>下次启动时不再弹出这条安全确认</span>
