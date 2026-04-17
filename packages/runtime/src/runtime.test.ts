@@ -123,6 +123,29 @@ class TestLlm implements LlmPort {
   }
 }
 
+class CountingDeviceToolLlm implements LlmPort {
+  count = 0;
+
+  async runTurn() {
+    this.count += 1;
+    return {
+      assistantMessage: '准备启动 A',
+      toolCalls: [
+        {
+          id: 'tool-1',
+          name: 'start',
+          args: {
+            channel: 'A',
+            strength: 20,
+            waveformId: 'pulse',
+            loop: true,
+          },
+        },
+      ],
+    };
+  }
+}
+
 class TwoStepLlm implements LlmPort {
   async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
     const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
@@ -394,6 +417,30 @@ describe('AgentRuntime', () => {
     const session = await runtime.getSessionSnapshot('test');
     expect(session.deviceState.connected).toBe(false);
     expect(session.deviceState.deviceName).toBeUndefined();
+  });
+
+  it('stops the turn immediately when a device tool is requested while disconnected', async () => {
+    const llm = new CountingDeviceToolLlm();
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: false }),
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'test',
+      text: '启动 A 通道',
+      context: {
+        sessionId: 'test',
+        sourceType: 'cli',
+        traceId: 'trace-disconnected-stop',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('test');
+    expect(llm.count).toBe(1);
+    expect(session.messages.at(-1)?.content).toBe('设备未连接，请先点击“连接设备”。');
   });
 
   it('enforces configurable per-turn adjust_strength quotas', async () => {

@@ -192,7 +192,7 @@ export function ChatPanel({
             <Button
               variant="secondary"
               size="sm"
-              className="h-10 w-10 rounded-[16px] border-[var(--surface-border)] bg-[var(--glass)] px-0 shadow-none hover:bg-[var(--glass)] sm:w-auto sm:px-4"
+              className="h-9 w-9 rounded-[16px] border-[var(--surface-border)] bg-[var(--glass)] px-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none hover:bg-[var(--glass)] hover:text-[var(--text)] sm:h-9 sm:w-auto sm:gap-2.5 sm:px-3.5"
               disabled={!activeSessionId}
               onClick={onConnect}
               aria-label={connectButtonLabel}
@@ -203,7 +203,7 @@ export function ChatPanel({
             <Button
               variant="destructive"
               size="sm"
-              className="h-10 w-10 rounded-[16px] px-0 shadow-none sm:w-auto sm:px-4"
+              className="h-9 w-9 rounded-[16px] px-0 text-[13px] font-medium tracking-[-0.01em] shadow-none sm:h-9 sm:w-auto sm:gap-2.5 sm:px-3.5"
               disabled={emergencyStopDisabled}
               onClick={onEmergencyStop}
               aria-label="紧急停止"

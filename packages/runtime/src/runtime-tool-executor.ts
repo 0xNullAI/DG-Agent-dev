@@ -59,6 +59,14 @@ export class RuntimeToolExecutor {
       return this.denyToolCall(session.id, toolCall, quotaError);
     }
 
+    if (isDeviceToolName(toolCall.name)) {
+      const currentState = await this.options.device.getState();
+      session.deviceState = currentState;
+      if (!currentState.connected) {
+        return this.denyToolCall(session.id, toolCall, '设备未连接。');
+      }
+    }
+
     const planResult = await this.resolvePlan(session.id, toolCall);
     if ('error' in planResult) {
       return JSON.stringify({ error: planResult.error });
@@ -236,6 +244,17 @@ export class RuntimeToolExecutor {
     });
     return JSON.stringify({ error: reason });
   }
+}
+
+function isDeviceToolName(name: string): boolean {
+  return (
+    name === 'start' ||
+    name === 'stop' ||
+    name === 'adjust_strength' ||
+    name === 'change_wave' ||
+    name === 'burst' ||
+    name === 'emergency_stop'
+  );
 }
 
 function validateBurstExecution(

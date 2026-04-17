@@ -1,4 +1,4 @@
-import type { DevicePort, LlmPort, LoggerPort, PermissionPort, SessionStorePort, WaveformLibraryPort } from '@dg-agent/contracts';
+import type { DevicePort, LlmConversationItem, LlmPort, LoggerPort, PermissionPort, SessionStorePort, WaveformLibraryPort } from '@dg-agent/contracts';
 import { createEmptyDeviceState, createMessage, type ActionContext, type SessionSnapshot } from '@dg-agent/core';
 import { createDefaultPolicyRules } from './default-policies.js';
 import { DeviceCommandQueue } from './device-command-queue.js';
@@ -268,17 +268,19 @@ export class AgentRuntime {
         };
       }
 
-      if (llmResult.assistantMessage.trim()) {
-        turnState.narrations.push(llmResult.assistantMessage);
-        turnState.workingItems.push({
+      const iterationItems: LlmConversationItem[] = [];
+      const iterationAssistantMessage = llmResult.assistantMessage.trim();
+
+      if (iterationAssistantMessage) {
+        iterationItems.push({
           kind: 'message',
           role: 'assistant',
-          content: llmResult.assistantMessage,
+          content: iterationAssistantMessage,
         });
       }
 
       for (const toolCall of llmResult.toolCalls ?? []) {
-        turnState.workingItems.push({
+        iterationItems.push({
           kind: 'function_call',
           callId: toolCall.id,
           name: toolCall.name,
@@ -292,12 +294,24 @@ export class AgentRuntime {
           turnState,
           abortSignal,
         });
-        turnState.workingItems.push({
+        if (shouldStopTurnForDisconnectedDevice(toolCall.name, output)) {
+          return {
+            narrations: turnState.narrations,
+            finalAssistantText: '设备未连接，请先点击“连接设备”。',
+          };
+        }
+
+        iterationItems.push({
           kind: 'function_call_output',
           callId: toolCall.id,
           output,
         });
       }
+
+      if (iterationAssistantMessage) {
+        turnState.narrations.push(iterationAssistantMessage);
+      }
+      turnState.workingItems.push(...iterationItems);
     }
 
     return {
@@ -324,4 +338,26 @@ export class AgentRuntime {
     await this.sessions.save(created);
     return created;
   }
+}
+
+function shouldStopTurnForDisconnectedDevice(toolName: string, output: string): boolean {
+  if (!isDeviceToolName(toolName)) return false;
+
+  try {
+    const parsed = JSON.parse(output) as { error?: string };
+    return parsed.error === '设备未连接。';
+  } catch {
+    return false;
+  }
+}
+
+function isDeviceToolName(name: string): boolean {
+  return (
+    name === 'start' ||
+    name === 'stop' ||
+    name === 'adjust_strength' ||
+    name === 'change_wave' ||
+    name === 'burst' ||
+    name === 'emergency_stop'
+  );
 }

@@ -45,7 +45,7 @@ export function SessionPanel({
         <div className="shrink-0 px-2.5 pb-3 pt-[0.6875rem]">
           <Button
             variant="ghost"
-            className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+            className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
             onClick={onToggleCollapsed}
             aria-label="展开侧边栏"
           >
@@ -57,7 +57,7 @@ export function SessionPanel({
           {onCreateSession && (
             <Button
               variant="ghost"
-              className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+              className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
               onClick={onCreateSession}
               aria-label="发起新对话"
             >
@@ -67,7 +67,7 @@ export function SessionPanel({
           {onOpenSettings && (
             <Button
               variant="ghost"
-              className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+              className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
               onClick={onOpenSettings}
               aria-label="打开设置"
             >
@@ -88,7 +88,7 @@ export function SessionPanel({
               <div className="w-full">
                 <Button
                   variant="ghost"
-                  className="h-auto w-full justify-start gap-3 rounded-[12px] pl-4 pr-2 py-2.5 text-sm font-normal text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                  className="h-auto w-full justify-start gap-2.5 rounded-[12px] pl-4 pr-2 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
                   onClick={onToggleCollapsed}
                   aria-label="收起侧边栏"
                 >
@@ -176,7 +176,7 @@ export function SessionPanel({
           {onCreateSession && (
             <Button
               variant="ghost"
-              className="h-auto w-full justify-start gap-3 rounded-[12px] pl-4 pr-2 py-2.5 text-sm font-normal text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+              className="h-auto w-full justify-start gap-2.5 rounded-[12px] pl-4 pr-2 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
               onClick={onCreateSession}
             >
               <MessageSquarePlus className="h-4 w-4 shrink-0" />
@@ -190,7 +190,7 @@ export function SessionPanel({
             onOpenSettings && (
               <Button
                 variant="ghost"
-                className="h-auto w-full justify-start gap-3 rounded-[12px] pl-4 pr-2 py-2.5 text-sm font-normal text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                className="h-auto w-full justify-start gap-2.5 rounded-[12px] pl-4 pr-2 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
                 onClick={onOpenSettings}
               >
                 <Settings2 className="h-4 w-4 shrink-0" />
