@@ -753,7 +753,7 @@ export function App() {
         )}
 
         <Sheet open={controlOpen} onOpenChange={handleControlOpenChange}>
-          <SheetContent side="right" className="flex h-full max-w-[520px] flex-col overflow-hidden bg-[var(--bg-elevated)] p-5 [&>button]:hidden">
+          <SheetContent side="right" className="flex h-full max-w-[520px] flex-col overflow-hidden bg-[var(--bg-elevated)] p-4 [&>button]:hidden">
             <SheetHeader>
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -767,8 +767,8 @@ export function App() {
               </div>
             </SheetHeader>
 
-            <Tabs value={inspectorTab} onValueChange={(value) => setInspectorTab(value as InspectorTab)} className="mt-5 flex min-h-0 flex-1 flex-col control-tabs-shell">
-              <TabsList className="control-tabs mt-4 mr-1 grid w-[calc(100%-0.25rem)] grid-cols-2 gap-0 lg:grid-cols-5">
+            <Tabs value={inspectorTab} onValueChange={(value) => setInspectorTab(value as InspectorTab)} className="flex min-h-0 flex-1 flex-col control-tabs-shell control-tabs-shell-main">
+              <TabsList className="control-tabs control-tabs-main mr-1 grid w-[calc(100%-0.25rem)] grid-cols-2 gap-0 lg:grid-cols-5">
                 <TabsTrigger className="control-tab-trigger" value="runtime">运行</TabsTrigger>
                 <TabsTrigger className="control-tab-trigger" value="settings">设置</TabsTrigger>
                 <TabsTrigger className="control-tab-trigger" value="waveforms">波形</TabsTrigger>

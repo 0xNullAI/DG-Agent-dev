@@ -13,14 +13,14 @@ interface WaveformsPanelProps {
 export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove, onEdit }: WaveformsPanelProps) {
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="px-4 pb-3">
         <div className="min-w-0">
           <CardTitle>波形库</CardTitle>
           <CardDescription>导入 `.pulse` / `.zip`，并管理你的自定义波形。</CardDescription>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
+      <CardContent className="px-4 pt-0">
         <label className="mb-4 flex flex-col gap-2 text-sm font-medium text-[var(--text)]">
           <span>导入文件</span>
           <input
@@ -39,9 +39,9 @@ export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove,
             return (
               <div
                 key={waveform.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4"
               >
-                <div className="min-w-0 flex-1 pl-2">
+                <div className="min-w-0 flex-1">
                   <div className="font-semibold text-[var(--text)]">{waveform.name}</div>
                   <div className="mt-1 text-sm text-[var(--text-soft)]">
                     {waveform.id} · {waveform.frames.length} 帧

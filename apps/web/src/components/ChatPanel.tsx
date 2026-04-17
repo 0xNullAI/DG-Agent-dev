@@ -193,9 +193,9 @@ export function ChatPanel({
             </Button>
           </div>
         </div>
+        <div className="-mx-6 mt-[9px] border-t border-[var(--surface-border)] lg:-mx-1" />
         {deviceState.connected ? (
           <div>
-            <div className="-mx-6 mt-[9px] border-t border-[var(--surface-border)] lg:-mx-1" />
             <div
               className="grid items-center px-[10%] pt-0.5"
               style={{

@@ -68,26 +68,26 @@ export function RuntimeStatusPanel({
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="px-4 pb-3">
         <CardTitle>运行概览</CardTitle>
         <CardDescription>把设备、模型、语音和桥接分开看，避免所有东西都堆在设备下面。</CardDescription>
       </CardHeader>
 
-      <CardContent className="pt-0">
+      <CardContent className="px-4 pt-0">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-4">
+          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
             <div className="text-sm text-[var(--text-faint)]">连接状态</div>
             <div className="mt-1 text-lg font-semibold">{deviceState.connected ? '已连接' : '未连接'}</div>
           </div>
-          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-4">
+          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
             <div className="text-sm text-[var(--text-faint)]">电量</div>
             <div className="mt-1 text-lg font-semibold">{deviceState.battery ?? 0}%</div>
           </div>
-          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-4">
+          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
             <div className="text-sm text-[var(--text-faint)]">语音模式</div>
             <div className="mt-1 text-lg font-semibold">{voiceMode ? voiceState : '关闭'}</div>
           </div>
-          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-4">
+          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
             <div className="text-sm text-[var(--text-faint)]">桥接队列</div>
             <div className="mt-1 text-lg font-semibold">{bridgeStatus?.pendingMessages ?? 0}</div>
           </div>
@@ -108,7 +108,7 @@ export function RuntimeStatusPanel({
             { title: '语音', lines: voiceLines },
             { title: '桥接与安全', lines: bridgeLines },
           ].map((section) => (
-            <section key={section.title} className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-4">
+            <section key={section.title} className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
               <div className="text-sm font-semibold text-[var(--text)]">{section.title}</div>
               <ul className="mt-3 grid gap-2">
                 {section.lines.map((line) => (

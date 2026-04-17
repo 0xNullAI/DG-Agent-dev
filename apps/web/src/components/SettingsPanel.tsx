@@ -2,6 +2,7 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { PROXY_TTS_SPEAKERS } from '@dg-agent/audio-browser';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -10,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
@@ -179,13 +181,17 @@ export function SettingsPanel({
   }
 
   return (
-    <article className="panel">
-      <div className="panel-header">
-        <h2>设置</h2>
-      </div>
+    <Card>
+      <CardHeader className="settings-panel-header">
+        <div className="min-w-0">
+          <CardTitle>设置</CardTitle>
+          <CardDescription>管理主题、模型、安全、桥接与语音等偏好。</CardDescription>
+        </div>
+      </CardHeader>
 
-      <div className="settings settings-grouped">
-        <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as typeof settingsTab)} className="control-tabs-shell px-5 pt-4">
+      <CardContent className="settings-panel-content pt-0">
+      <div className="settings settings-grouped settings-panel-body">
+        <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as typeof settingsTab)} className="control-tabs-shell settings-panel-tabs">
           <TabsList className="control-tabs grid w-full grid-cols-2 gap-0 md:grid-cols-5">
             <TabsTrigger className="control-tab-trigger" value="general">常规</TabsTrigger>
             <TabsTrigger className="control-tab-trigger" value="model">模型</TabsTrigger>
@@ -193,7 +199,7 @@ export function SettingsPanel({
             <TabsTrigger className="control-tab-trigger" value="bridge">桥接</TabsTrigger>
             <TabsTrigger className="control-tab-trigger" value="voice">语音</TabsTrigger>
           </TabsList>
-          <TabsContent value="general" className="mt-4">
+          <TabsContent value="general" className="settings-panel-tab-content">
         <section className="settings-group">
           <h3 className="settings-group-title">基础</h3>
 
@@ -306,7 +312,7 @@ export function SettingsPanel({
         </section>
           </TabsContent>
 
-          <TabsContent value="model" className="mt-4">
+          <TabsContent value="model" className="settings-panel-tab-content">
         <section className="settings-group">
           <h3 className="settings-group-title">模型服务</h3>
 
@@ -341,7 +347,7 @@ export function SettingsPanel({
         </section>
           </TabsContent>
 
-          <TabsContent value="safety" className="mt-4">
+          <TabsContent value="safety" className="settings-panel-tab-content">
         <section className="settings-group">
           <h3 className="settings-group-title">安全</h3>
 
@@ -440,7 +446,7 @@ export function SettingsPanel({
         </section>
           </TabsContent>
 
-          <TabsContent value="bridge" className="mt-4">
+          <TabsContent value="bridge" className="settings-panel-tab-content">
         <section className="settings-group">
           <h3 className="settings-group-title">桥接</h3>
 
@@ -567,6 +573,8 @@ export function SettingsPanel({
                 </>
               )}
 
+              <Separator className="my-1.5" />
+
               <label className="checkbox-row">
                 <Checkbox
                   checked={settingsDraft.bridge.telegram.enabled}
@@ -678,7 +686,7 @@ export function SettingsPanel({
 
           </TabsContent>
 
-          <TabsContent value="voice" className="mt-4">
+          <TabsContent value="voice" className="settings-panel-tab-content">
         <section className="settings-group">
           <h3 className="settings-group-title">语音</h3>
 
@@ -793,6 +801,7 @@ export function SettingsPanel({
           </Button>
         </div>
       </div>
-    </article>
+      </CardContent>
+    </Card>
   );
 }
