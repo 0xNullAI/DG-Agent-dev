@@ -1,5 +1,4 @@
 import type { WaveformDefinition } from '@dg-agent/core';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -15,14 +14,9 @@ export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove,
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <CardTitle>波形库</CardTitle>
-            <CardDescription>导入 `.pulse` / `.zip`，并管理你的自定义波形。</CardDescription>
-          </div>
-          <Badge variant="default">
-            共 {waveforms.length} 个 / 自定义 {customWaveforms.length} 个
-          </Badge>
+        <div className="min-w-0">
+          <CardTitle>波形库</CardTitle>
+          <CardDescription>导入 `.pulse` / `.zip`，并管理你的自定义波形。</CardDescription>
         </div>
       </CardHeader>
 
@@ -63,9 +57,7 @@ export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove,
                       删除
                     </Button>
                   </div>
-                ) : (
-                  <Badge variant="default">内置</Badge>
-                )}
+                ) : null}
               </div>
             );
           })}
