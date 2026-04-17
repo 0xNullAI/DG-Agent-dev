@@ -98,6 +98,7 @@ export type PolicyDecision =
 export type RuntimeEvent =
   | { type: 'user-message-accepted'; sessionId: string; message: ConversationMessage }
   | { type: 'assistant-message-delta'; sessionId: string; content: string }
+  | { type: 'session-updated'; sessionId: string }
   | { type: 'assistant-message-completed'; sessionId: string; message: ConversationMessage }
   | { type: 'assistant-message-aborted'; sessionId: string; reason: string; message: ConversationMessage }
   | { type: 'tool-call-proposed'; sessionId: string; toolCall: ToolCall }

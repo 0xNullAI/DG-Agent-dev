@@ -49,9 +49,10 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   registry.register({
     name: 'start',
     async definition() {
+      const waveformDescription = await buildWaveformDescriptionText(deps.waveformLibrary);
       return {
         name: 'start',
-        description: 'Start one channel with a waveform and initial strength.',
+        description: ['Start one channel with a waveform and initial strength.', waveformDescription].filter(Boolean).join(' '),
         parameters: {
           type: 'object',
           properties: {
@@ -154,9 +155,10 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   registry.register({
     name: 'change_wave',
     async definition() {
+      const waveformDescription = await buildWaveformDescriptionText(deps.waveformLibrary);
       return {
         name: 'change_wave',
-        description: 'Change the waveform for one channel without changing connection state.',
+        description: ['Change the waveform for one channel without changing connection state.', waveformDescription].filter(Boolean).join(' '),
         parameters: {
           type: 'object',
           properties: {
@@ -288,16 +290,37 @@ async function buildWaveformIdParameter(waveformLibrary: WaveformLibraryPort | u
 
   const waveforms = await waveformLibrary.list();
   const waveformIds = waveforms.map((waveform) => waveform.id);
-  const waveformDescription =
-    waveformIds.length === 0
-      ? '当前波形库为空。'
-      : `可用波形：${waveforms.map((waveform) => `${waveform.id}${waveform.description ? `（${waveform.description}）` : ''}`).join('、')}`;
+  const waveformDescription = buildWaveformSummaryText(waveforms);
 
   return {
     type: 'string',
     enum: waveformIds,
     description: waveformDescription,
   };
+}
+
+async function buildWaveformDescriptionText(waveformLibrary: WaveformLibraryPort | undefined): Promise<string> {
+  if (!waveformLibrary) {
+    return '';
+  }
+
+  return buildWaveformSummaryText(await waveformLibrary.list());
+}
+
+function buildWaveformSummaryText(
+  waveforms: Array<{
+    id: string;
+    name: string;
+    description?: string;
+  }>,
+): string {
+  if (waveforms.length === 0) {
+    return '当前波形库为空。';
+  }
+
+  return `可用波形：${waveforms
+    .map((waveform) => `${waveform.id}（${waveform.name}${waveform.description ? `：${waveform.description}` : ''}）`)
+    .join('、')}`;
 }
 
 async function resolveWaveform(

@@ -70,6 +70,7 @@ export class AgentRuntime {
   private readonly toolCallConfig: ToolCallConfig;
   private readonly toolExecutor: RuntimeToolExecutor;
   private readonly activeTurns = new Map<string, AbortController>();
+  private readonly pendingFollowUps = new Map<string, SendUserMessageInput[]>();
 
   constructor(private readonly options: AgentRuntimeOptions) {
     this.sessions = options.sessionStore ?? new InMemorySessionStore();
@@ -151,6 +152,10 @@ export class AgentRuntime {
 
   async sendUserMessage(input: SendUserMessageInput): Promise<void> {
     if (this.activeTurns.has(input.sessionId)) {
+      if (input.context.sourceType === 'system') {
+        this.enqueueFollowUp(input);
+        return;
+      }
       throw new Error('Another reply is already in progress for this session.');
     }
 
@@ -174,9 +179,8 @@ export class AgentRuntime {
       const turnResult = await this.runToolLoop(session, input, abortController.signal);
       throwIfAborted(abortController.signal);
 
-      const narrationMessages = turnResult.narrations.map((content) => createMessage('assistant', content));
       const assistantMessage = createMessage('assistant', turnResult.finalAssistantText);
-      session.messages.push(...narrationMessages, assistantMessage);
+      session.messages.push(assistantMessage);
       session.updatedAt = Date.now();
       session.deviceState = await this.options.device.getState();
       await this.sessions.save(session);
@@ -223,6 +227,9 @@ export class AgentRuntime {
       if (this.activeTurns.get(session.id) === abortController) {
         this.activeTurns.delete(session.id);
       }
+      queueMicrotask(() => {
+        void this.drainPendingFollowUps(session.id);
+      });
     }
   }
 
@@ -230,7 +237,7 @@ export class AgentRuntime {
     session: SessionSnapshot,
     input: SendUserMessageInput,
     abortSignal?: AbortSignal,
-  ): Promise<{ narrations: string[]; finalAssistantText: string }> {
+  ): Promise<{ finalAssistantText: string }> {
     const turnState = createTurnState();
 
     for (let iteration = 0; iteration < this.toolCallConfig.maxToolIterations; iteration++) {
@@ -263,7 +270,6 @@ export class AgentRuntime {
 
       if ((llmResult.toolCalls ?? []).length === 0) {
         return {
-          narrations: turnState.narrations,
           finalAssistantText: llmResult.assistantMessage,
         };
       }
@@ -272,6 +278,14 @@ export class AgentRuntime {
       const iterationAssistantMessage = llmResult.assistantMessage.trim();
 
       if (iterationAssistantMessage) {
+        const assistantMessage = createMessage('assistant', iterationAssistantMessage);
+        session.messages.push(assistantMessage);
+        session.updatedAt = Date.now();
+        await this.sessions.save(session);
+        this.events.emit({
+          type: 'session-updated',
+          sessionId: session.id,
+        });
         iterationItems.push({
           kind: 'message',
           role: 'assistant',
@@ -296,7 +310,6 @@ export class AgentRuntime {
         });
         if (shouldStopTurnForDisconnectedDevice(toolCall.name, output)) {
           return {
-            narrations: turnState.narrations,
             finalAssistantText: '设备未连接，请先点击“连接设备”。',
           };
         }
@@ -308,14 +321,10 @@ export class AgentRuntime {
         });
       }
 
-      if (iterationAssistantMessage) {
-        turnState.narrations.push(iterationAssistantMessage);
-      }
       turnState.workingItems.push(...iterationItems);
     }
 
     return {
-      narrations: turnState.narrations,
       finalAssistantText: TOOL_LOOP_EXHAUSTED_MESSAGE,
     };
   }
@@ -337,6 +346,29 @@ export class AgentRuntime {
 
     await this.sessions.save(created);
     return created;
+  }
+
+  private enqueueFollowUp(input: SendUserMessageInput): void {
+    const queue = this.pendingFollowUps.get(input.sessionId) ?? [];
+    queue.push(input);
+    this.pendingFollowUps.set(input.sessionId, queue);
+  }
+
+  private async drainPendingFollowUps(sessionId: string): Promise<void> {
+    if (this.activeTurns.has(sessionId)) return;
+
+    const queue = this.pendingFollowUps.get(sessionId);
+    if (!queue || queue.length === 0) return;
+
+    const next = queue.shift();
+    if (!next) return;
+    if (queue.length === 0) {
+      this.pendingFollowUps.delete(sessionId);
+    } else {
+      this.pendingFollowUps.set(sessionId, queue);
+    }
+
+    await this.sendUserMessage(next);
   }
 }
 
