@@ -38,6 +38,7 @@
 - 订阅 runtime 事件
 - 展示状态与采集输入
 - 调用 `AgentClient`
+- 维护“会话快照”和“实时设备状态”的前端镜像
 
 `apps/web` 不负责：
 
@@ -74,6 +75,8 @@
 - 权限请求入口
 - 设备命令队列
 - 运行时事件
+- system work queue（例如 timer 到期后的串行处理）
+- session trace 记录
 
 `packages/runtime` 不负责：
 
@@ -90,6 +93,7 @@
 - 设置 schema 校验
 - API key / voice key 持久化策略
 - 浏览器会话存储
+- 浏览器 session trace 存储
 
 `packages/storage-browser` 不负责：
 
@@ -97,7 +101,21 @@
 - provider 网络调用
 - 运行时安全策略
 
-## 6. Bridge 职责
+## 6. 消息与 trace 护栏
+
+默认规则：
+
+- `session.messages` 只保留正常聊天正文
+- tool result / deny / fail / timer 等运行记录写入 trace
+- timer 到期、deny/fail 后用于收口的内部提示使用 ephemeral input，不写入会话正文
+
+禁止重新引入：
+
+- 把内部系统提示长期持久化到 `session.messages`
+- 把工具输出伪装成原始聊天消息塞回 history
+- 把 trace 再塞回 `session.metadata` 做整对象覆盖保存
+
+## 7. Bridge 职责
 
 `packages/bridge-core` 负责：
 
@@ -113,7 +131,7 @@
 
 桥接相关不应直接侵入页面组件。
 
-## 7. Provider / Device 适配层职责
+## 8. Provider / Device 适配层职责
 
 `providers-*` 只做：
 
@@ -132,7 +150,7 @@
 - 会话编排
 - UI 权限流
 
-## 8. 新功能接入规则
+## 9. 新功能接入规则
 
 新增功能前先判断：
 
@@ -142,7 +160,7 @@
 
 如果答案是“会让页面知道太多”，那通常就是放错层了。
 
-## 9. 默认优先级
+## 10. 默认优先级
 
 实现顺序始终优先：
 

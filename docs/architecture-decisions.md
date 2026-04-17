@@ -46,22 +46,22 @@
 - `runtime-tool-executor`
 - `runtime-turn-state`
 - `runtime-errors`
+- `session-trace`
 
 原因：
 
 - `AgentRuntime` 应该保留主流程，不继续膨胀成“第二个巨石文件”
 - tool 执行、turn 状态、错误归一化属于清晰的内部职责
+- tool / timer / deny 等结构化记录不应该继续和会话正文硬耦合
 
 ### 5. 浏览器存储与桥接核心都要避免“单文件核心化”
 
 当前已经明确拆分：
 
 - `packages/storage-browser`
-  - settings types
-  - defaults
-  - schema
   - settings store
   - session store
+  - session trace store
 - `packages/bridge-core`
   - bridge types
   - message queue
@@ -74,7 +74,34 @@
 - 这些模块本质上已经是独立逻辑域
 - 继续堆在一个 `index.ts` 里，只会把可维护性问题推迟
 
-### 6. 页面流程用 hooks 组织，而不是把行为继续堆在 `App.tsx`
+### 6. 会话正文、trace、ephemeral trigger 三层分离
+
+当前实现已经收敛为三层：
+
+- `session.messages`
+  - 只持久化正常对话正文，主要是 `user / assistant`
+- `session trace`
+  - 持久化工具调用、执行结果、拒绝、失败、定时器等结构化记录
+- `ephemeral trigger`
+  - 定时器到期、工具拒绝/失败后的内部跟进提示，只用于触发下一轮模型收口，不写入会话正文
+
+原因：
+
+- 内部系统触发文本不应继续污染 chat history
+- tool / timer 记录需要留档，但它们更适合结构化 trace，而不是伪装成聊天消息
+- 这样才能同时满足“模型需要上下文”和“用户看到的聊天记录干净”两件事
+
+### 7. session trace 独立 store，避免和会话快照互相覆盖
+
+当前 trace 已从 `session.metadata` 拆出，单独存入 trace store。
+
+原因：
+
+- timer / system work 和主 turn 并行时，整对象覆盖保存会带来 trace 丢失风险
+- 独立 trace store 更接近真实语义：正文是正文，运行记录是运行记录
+- 前端按需加载 trace，比把所有运行记录塞回会话快照更稳定
+
+### 8. 页面流程用 hooks 组织，而不是把行为继续堆在 `App.tsx`
 
 当前前端组合层已经分出：
 
