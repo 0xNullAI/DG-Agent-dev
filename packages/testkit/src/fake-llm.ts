@@ -28,7 +28,7 @@ export class FakeLlmPort implements LlmPort {
           nextToolCall('start', {
             channel: 'A',
             strength,
-            waveformId: 'pulse',
+            waveformId: 'pulse_mid',
             loop: true,
           }),
         ],
@@ -43,7 +43,7 @@ export class FakeLlmPort implements LlmPort {
           nextToolCall('start', {
             channel: 'B',
             strength,
-            waveformId: 'pulse',
+            waveformId: 'pulse_mid',
             loop: true,
           }),
         ],

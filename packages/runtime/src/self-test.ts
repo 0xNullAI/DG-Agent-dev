@@ -111,7 +111,7 @@ class TestLlm implements LlmPort {
           args: {
             channel: 'A',
             strength: 50,
-            waveformId: 'pulse',
+            waveformId: 'pulse_mid',
             loop: true,
           },
         },
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
 
   const quotaEvents: RuntimeEvent[] = [];
   const quotaRuntime = new AgentRuntime({
-    device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse' }),
+    device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
     llm: new RepeatedAdjustLlm(),
     permission: new TestPermission(),
     waveformLibrary: createBasicWaveformLibrary(),

@@ -247,7 +247,7 @@ export class AgentRuntime {
             isFirstIteration: iteration === 0,
             turnToolCalls: collectTurnToolCalls(turnState),
           }) ?? '',
-        tools: this.toolRegistry.listDefinitions(),
+        tools: await this.toolRegistry.listDefinitions(),
         conversation: buildConversationItems(session, turnState),
         abortSignal,
         onTextDelta: (content) => {

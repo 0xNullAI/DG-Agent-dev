@@ -3,7 +3,8 @@ import type { ToolCall, ToolDefinition, ToolExecutionPlan } from '@dg-agent/core
 import { z } from 'zod';
 
 export interface ToolHandler {
-  definition: ToolDefinition;
+  name: string;
+  definition: ToolDefinition | (() => Promise<ToolDefinition> | ToolDefinition);
   toExecutionPlan(args: Record<string, unknown>): Promise<ToolExecutionPlan> | ToolExecutionPlan;
 }
 
@@ -11,7 +12,7 @@ export class ToolRegistry {
   private readonly handlers = new Map<string, ToolHandler>();
 
   register(handler: ToolHandler): void {
-    this.handlers.set(handler.definition.name, handler);
+    this.handlers.set(handler.name, handler);
   }
 
   async resolve(toolCall: ToolCall): Promise<ToolExecutionPlan> {
@@ -23,8 +24,12 @@ export class ToolRegistry {
     return handler.toExecutionPlan(toolCall.args);
   }
 
-  listDefinitions(): ToolDefinition[] {
-    return [...this.handlers.values()].map((handler) => handler.definition);
+  async listDefinitions(): Promise<ToolDefinition[]> {
+    return Promise.all(
+      [...this.handlers.values()].map((handler) =>
+        typeof handler.definition === 'function' ? handler.definition() : handler.definition,
+      ),
+    );
   }
 }
 
@@ -42,26 +47,29 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   const registry = new ToolRegistry();
 
   registry.register({
-    definition: {
-      name: 'start',
-      description: 'Start one channel with a waveform and initial strength.',
-      parameters: {
-        type: 'object',
-        properties: {
-          channel: { type: 'string', enum: ['A', 'B'] },
-          strength: { type: 'integer', minimum: 0, maximum: 200 },
-          waveformId: { type: 'string' },
-          loop: { type: 'boolean' },
+    name: 'start',
+    async definition() {
+      return {
+        name: 'start',
+        description: 'Start one channel with a waveform and initial strength.',
+        parameters: {
+          type: 'object',
+          properties: {
+            channel: { type: 'string', enum: ['A', 'B'] },
+            strength: { type: 'integer', minimum: 0, maximum: 200 },
+            waveformId: await buildWaveformIdParameter(deps.waveformLibrary),
+            loop: { type: 'boolean' },
+          },
+          required: ['channel', 'strength', 'waveformId'],
         },
-        required: ['channel', 'strength', 'waveformId'],
-      },
+      };
     },
     async toExecutionPlan(args) {
       const parsed = z
         .object({
           channel: channelSchema,
           strength: z.coerce.number().int().min(0).max(200),
-          waveformId: z.string().min(1).default('pulse'),
+          waveformId: z.string().min(1).default('pulse_mid'),
           loop: z.boolean().optional().default(true),
         })
         .parse(args);
@@ -82,6 +90,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   });
 
   registry.register({
+    name: 'stop',
     definition: {
       name: 'stop',
       description: 'Stop one channel or all channels.',
@@ -110,6 +119,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   });
 
   registry.register({
+    name: 'adjust_strength',
     definition: {
       name: 'adjust_strength',
       description: 'Adjust the strength of one channel by a delta.',
@@ -142,18 +152,21 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   });
 
   registry.register({
-    definition: {
-      name: 'change_wave',
-      description: 'Change the waveform for one channel without changing connection state.',
-      parameters: {
-        type: 'object',
-        properties: {
-          channel: { type: 'string', enum: ['A', 'B'] },
-          waveformId: { type: 'string' },
-          loop: { type: 'boolean' },
+    name: 'change_wave',
+    async definition() {
+      return {
+        name: 'change_wave',
+        description: 'Change the waveform for one channel without changing connection state.',
+        parameters: {
+          type: 'object',
+          properties: {
+            channel: { type: 'string', enum: ['A', 'B'] },
+            waveformId: await buildWaveformIdParameter(deps.waveformLibrary),
+            loop: { type: 'boolean' },
+          },
+          required: ['channel', 'waveformId'],
         },
-        required: ['channel', 'waveformId'],
-      },
+      };
     },
     async toExecutionPlan(args) {
       const parsed = z
@@ -179,6 +192,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   });
 
   registry.register({
+    name: 'burst',
     definition: {
       name: 'burst',
       description: 'Temporarily raise one channel to a target strength for a short duration.',
@@ -214,6 +228,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   });
 
   registry.register({
+    name: 'emergency_stop',
     definition: {
       name: 'emergency_stop',
       description: 'Immediately stop all output.',
@@ -231,6 +246,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   });
 
   registry.register({
+    name: 'timer',
     definition: {
       name: 'timer',
       description: 'Schedule a timer that will message the assistant again after a delay.',
@@ -263,6 +279,25 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   });
 
   return registry;
+}
+
+async function buildWaveformIdParameter(waveformLibrary: WaveformLibraryPort | undefined): Promise<Record<string, unknown>> {
+  if (!waveformLibrary) {
+    return { type: 'string' };
+  }
+
+  const waveforms = await waveformLibrary.list();
+  const waveformIds = waveforms.map((waveform) => waveform.id);
+  const waveformDescription =
+    waveformIds.length === 0
+      ? '当前波形库为空。'
+      : `可用波形：${waveforms.map((waveform) => `${waveform.id}${waveform.description ? `（${waveform.description}）` : ''}`).join('、')}`;
+
+  return {
+    type: 'string',
+    enum: waveformIds,
+    description: waveformDescription,
+  };
 }
 
 async function resolveWaveform(
