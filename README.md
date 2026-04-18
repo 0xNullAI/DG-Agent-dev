@@ -1,8 +1,6 @@
 # DG-Agent
 
-这是 `DG-Agent` 的实验仓库。
-
-这份 README 合并了原本分散在 `README.md`、`docs/architecture-decisions.md`、`docs/architecture-guardrails.md`、`docs/ui-maintenance-notes.md` 里的当前共识。目标不是压缩信息，而是把项目定位、架构决策、架构护栏、前端接手注意事项放到一个入口里，减少来回翻文档和重复表述。
+这是 `DG-Agent` 的实验重写仓库。
 
 ## 当前定位
 
