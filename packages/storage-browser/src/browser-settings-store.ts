@@ -74,6 +74,7 @@ export class BrowserAppSettingsStore {
       showSafetyNoticeOnStartup: settings.showSafetyNoticeOnStartup,
       deviceMode: settings.deviceMode,
       llmMode: settings.llmMode,
+      modelContextStrategy: settings.modelContextStrategy,
       permissionMode: persistedPermissionMode,
       permissionModeExpiresAt: persistedPermissionModeExpiresAt,
       backgroundBehavior: settings.backgroundBehavior,

@@ -1,5 +1,5 @@
 import type { LlmConversationItem } from '@dg-agent/contracts';
-import type { SessionSnapshot } from '@dg-agent/core';
+import type { ModelContextStrategy, SessionSnapshot } from '@dg-agent/core';
 import type { ToolCallConfig } from './tool-call-config.js';
 
 export interface TurnState {
@@ -29,9 +29,10 @@ export function buildConversationItems(
   session: SessionSnapshot,
   turnState: TurnState,
   currentInput?: LlmConversationItem | null,
+  modelContextStrategy: ModelContextStrategy = 'last-user-turn',
 ): LlmConversationItem[] {
   return [
-    ...selectModelContextMessages(session.messages).map<LlmConversationItem>((message) => ({
+    ...selectModelContextMessages(session.messages, modelContextStrategy).map<LlmConversationItem>((message) => ({
       kind: 'message',
       role: message.role,
       content: message.content,
@@ -86,17 +87,29 @@ export function consumeTurnQuota(toolName: string, turnState: TurnState, config:
   return null;
 }
 
-function selectModelContextMessages(messages: SessionSnapshot['messages']): SessionSnapshot['messages'] {
-  if (messages.length <= 1) return messages;
-
-  const currentUserIndex = messages.length - 1;
-  for (let index = currentUserIndex - 1; index >= 0; index--) {
-    if (messages[index]?.role === 'user') {
-      return messages.slice(index).filter((message) => !shouldSkipModelContextMessage(message));
-    }
+function selectModelContextMessages(
+  messages: SessionSnapshot['messages'],
+  strategy: ModelContextStrategy,
+): SessionSnapshot['messages'] {
+  const filteredMessages = messages.filter((message) => !shouldSkipModelContextMessage(message));
+  if (filteredMessages.length <= 1 || strategy === 'full-history') {
+    return filteredMessages;
   }
 
-  return messages.slice(currentUserIndex).filter((message) => !shouldSkipModelContextMessage(message));
+  const userMessageIndices = filteredMessages.flatMap((message, index) => (message.role === 'user' ? [index] : []));
+  if (userMessageIndices.length === 0) {
+    return filteredMessages;
+  }
+
+  if (strategy === 'last-five-user-turns') {
+    return filteredMessages.slice(userMessageIndices[Math.max(userMessageIndices.length - 5, 0)] ?? 0);
+  }
+
+  if (userMessageIndices.length === 1) {
+    return filteredMessages.slice(userMessageIndices[0] ?? 0);
+  }
+
+  return filteredMessages.slice(userMessageIndices[userMessageIndices.length - 2] ?? 0);
 }
 
 function shouldSkipModelContextMessage(message: SessionSnapshot['messages'][number]): boolean {

@@ -1,6 +1,7 @@
 export type Channel = 'A' | 'B';
 export type SourceType = 'web' | 'qq' | 'telegram' | 'cli' | 'api' | 'system';
 export type MessageRole = 'system' | 'user' | 'assistant';
+export type ModelContextStrategy = 'last-user-turn' | 'last-five-user-turns' | 'full-history';
 export type WaveFrame = [number, number];
 
 export interface WaveformDefinition {

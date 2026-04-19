@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
-import type { DevicePort, LlmPort, PermissionPort } from '@dg-agent/contracts';
-import { createEmptyDeviceState, type DeviceCommand, type DeviceCommandResult, type DeviceState, type RuntimeEvent } from '@dg-agent/core';
+import type { DevicePort, LlmPort, PermissionPort, SessionStorePort } from '@dg-agent/contracts';
+import {
+  createEmptyDeviceState,
+  createMessage,
+  type DeviceCommand,
+  type DeviceCommandResult,
+  type DeviceState,
+  type ModelContextStrategy,
+  type RuntimeEvent,
+} from '@dg-agent/core';
 import { AgentRuntime } from './agent-runtime.js';
 import { createBasicWaveformLibrary } from '@dg-agent/waveforms-basic';
 
@@ -151,6 +159,20 @@ class InspectingTestLlm implements LlmPort {
   }
 }
 
+class ContextProbeLlm implements LlmPort {
+  readonly conversations: string[][] = [];
+
+  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+    this.conversations.push(
+      (input.conversation ?? []).flatMap((item) => (item.kind === 'message' ? [`${item.role}:${item.content}`] : [])),
+    );
+
+    return {
+      assistantMessage: 'ok',
+    };
+  }
+}
+
 class TestPermission implements PermissionPort {
   async request(_input: Parameters<PermissionPort['request']>[0]) {
     return { type: 'approve-once' } as const;
@@ -234,6 +256,49 @@ class LegacyBurstArgsLlm implements LlmPort {
   }
 }
 
+class TestSessionStore implements SessionStorePort {
+  constructor(private readonly sessions = new Map<string, TestSessionStoreEntry>()) {}
+
+  async get(sessionId: string) {
+    const session = this.sessions.get(sessionId);
+    return session ? this.cloneSession(session) : null;
+  }
+
+  async save(session: Awaited<ReturnType<TestSessionStore['get']>> extends infer T ? Exclude<T, null> : never) {
+    this.sessions.set(session.id, this.cloneSession(session));
+  }
+
+  async list() {
+    return Array.from(this.sessions.values()).map((session) => this.cloneSession(session));
+  }
+
+  async delete(sessionId: string) {
+    this.sessions.delete(sessionId);
+  }
+
+  private cloneSession(session: TestSessionStoreEntry): TestSessionStoreEntry {
+    return {
+      ...session,
+      messages: session.messages.map((message) => ({ ...message })),
+      deviceState: { ...session.deviceState },
+      metadata: session.metadata ? structuredClone(session.metadata) : undefined,
+    };
+  }
+}
+
+interface TestSessionStoreEntry {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: Array<{ id: string; role: 'system' | 'user' | 'assistant'; content: string; createdAt: number }>;
+  deviceState: DeviceState;
+  metadata?: Record<string, unknown>;
+}
+
+function createScriptedMessages(entries: Array<['user' | 'assistant', string]>, startedAt = Date.now()) {
+  return entries.map(([role, content], index) => createMessage(role, content, startedAt + index));
+}
+
 async function main(): Promise<void> {
   const runtime = new AgentRuntime({
     device: new TestDevice(),
@@ -279,6 +344,89 @@ async function main(): Promise<void> {
       (item) => item.kind === 'message' && item.role === 'assistant' && item.content === '准备启动 A',
     ) ?? [];
   assert.equal(duplicatedNarrations.length, 1);
+
+  const seededMessages = createScriptedMessages([
+    ['user', 'u1'],
+    ['assistant', 'a1'],
+    ['user', 'u2'],
+    ['assistant', 'a2'],
+    ['user', 'u3'],
+    ['assistant', 'a3'],
+    ['user', 'u4'],
+    ['assistant', 'a4'],
+    ['user', 'u5'],
+    ['assistant', 'a5'],
+    ['user', 'u6'],
+    ['assistant', 'a6'],
+  ]);
+  const contextCases: Array<{ strategy: ModelContextStrategy; expected: string[] }> = [
+    {
+      strategy: 'last-user-turn',
+      expected: ['user:u6', 'assistant:a6', 'user:u7'],
+    },
+    {
+      strategy: 'last-five-user-turns',
+      expected: ['user:u3', 'assistant:a3', 'user:u4', 'assistant:a4', 'user:u5', 'assistant:a5', 'user:u6', 'assistant:a6', 'user:u7'],
+    },
+    {
+      strategy: 'full-history',
+      expected: [
+        'user:u1',
+        'assistant:a1',
+        'user:u2',
+        'assistant:a2',
+        'user:u3',
+        'assistant:a3',
+        'user:u4',
+        'assistant:a4',
+        'user:u5',
+        'assistant:a5',
+        'user:u6',
+        'assistant:a6',
+        'user:u7',
+      ],
+    },
+  ];
+
+  for (const testCase of contextCases) {
+    const llm = new ContextProbeLlm();
+    const now = Date.now();
+    const sessionStore = new TestSessionStore(
+      new Map([
+        [
+          `context-${testCase.strategy}`,
+          {
+            id: `context-${testCase.strategy}`,
+            createdAt: now,
+            updatedAt: now,
+            messages: seededMessages.map((message) => ({ ...message })),
+            deviceState: createEmptyDeviceState(),
+          },
+        ],
+      ]),
+    );
+
+    const runtimeWithStrategy = new AgentRuntime({
+      device: new TestDevice(),
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      sessionStore,
+      modelContextStrategy: testCase.strategy,
+    });
+
+    await runtimeWithStrategy.sendUserMessage({
+      sessionId: `context-${testCase.strategy}`,
+      text: 'u7',
+      context: {
+        sessionId: `context-${testCase.strategy}`,
+        sourceType: 'cli',
+        traceId: `trace-${testCase.strategy}`,
+      },
+    });
+
+    assert.deepEqual(llm.conversations[0], testCase.expected);
+  }
 
   const quotaEvents: RuntimeEvent[] = [];
   const quotaRuntime = new AgentRuntime({

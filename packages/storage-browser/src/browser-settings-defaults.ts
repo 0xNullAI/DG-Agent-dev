@@ -41,6 +41,7 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     showSafetyNoticeOnStartup: true,
     deviceMode: 'web-bluetooth',
     llmMode: 'provider-http',
+    modelContextStrategy: 'last-user-turn',
     permissionMode: 'confirm',
     backgroundBehavior: 'stop',
     maxStrengthA: 50,

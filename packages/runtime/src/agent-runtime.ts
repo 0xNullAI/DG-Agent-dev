@@ -1,5 +1,13 @@
 import type { DevicePort, LlmConversationItem, LlmPort, LoggerPort, PermissionPort, SessionStorePort, SessionTraceStorePort, WaveformLibraryPort } from '@dg-agent/contracts';
-import { createEmptyDeviceState, createMessage, type ActionContext, type ConversationMessage, type RuntimeTraceEntry, type SessionSnapshot } from '@dg-agent/core';
+import {
+  createEmptyDeviceState,
+  createMessage,
+  type ActionContext,
+  type ConversationMessage,
+  type ModelContextStrategy,
+  type RuntimeTraceEntry,
+  type SessionSnapshot,
+} from '@dg-agent/core';
 import { createDefaultPolicyRules } from './default-policies.js';
 import { DeviceCommandQueue } from './device-command-queue.js';
 import { InMemoryEventBus, type RuntimeListener } from './event-bus.js';
@@ -43,6 +51,7 @@ export interface AgentRuntimeOptions {
   toolRegistry?: ToolRegistry;
   policyEngine?: PolicyEngine;
   toolCallConfig?: ToolCallConfigInput;
+  modelContextStrategy?: ModelContextStrategy;
 }
 
 export interface SendUserMessageInput {
@@ -303,7 +312,12 @@ export class AgentRuntime {
             turnToolCalls: collectTurnToolCalls(turnState),
           }) ?? '',
         tools: input.context.sourceType === 'system' ? [] : await this.toolRegistry.listDefinitions(),
-        conversation: buildConversationItems(session, turnState, iteration === 0 ? ephemeralInput : null),
+        conversation: buildConversationItems(
+          session,
+          turnState,
+          iteration === 0 ? ephemeralInput : null,
+          this.options.modelContextStrategy,
+        ),
         abortSignal,
         onTextDelta: (content) => {
           this.events.emit({
@@ -400,11 +414,16 @@ export class AgentRuntime {
           turnToolCalls: collectTurnToolCalls(turnState),
         }) ?? '',
       tools: [],
-      conversation: buildConversationItems(session, turnState, {
-        kind: 'message',
-        role: 'user',
-        content: triggerText,
-      }),
+      conversation: buildConversationItems(
+        session,
+        turnState,
+        {
+          kind: 'message',
+          role: 'user',
+          content: triggerText,
+        },
+        this.options.modelContextStrategy,
+      ),
       abortSignal,
       onTextDelta: (content) => {
         this.events.emit({

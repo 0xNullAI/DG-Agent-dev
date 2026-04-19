@@ -39,6 +39,12 @@ interface SelectOption {
   label: string;
 }
 
+const MODEL_CONTEXT_STRATEGY_OPTIONS: SelectOption[] = [
+  { value: 'last-user-turn', label: '截取到上一轮用户 prompt' },
+  { value: 'last-five-user-turns', label: '截取前五轮用户 prompt' },
+  { value: 'full-history', label: '无限制' },
+];
+
 function SettingSelect({
   value,
   onValueChange,
@@ -320,6 +326,20 @@ export function SettingsPanel({
           {selectedProviderDef?.hint && <div className="provider-hint">{selectedProviderDef.hint}</div>}
 
           {selectedProviderDef?.fields.map((field) => renderProviderField(field))}
+
+          <label>
+            <span>上下文策略</span>
+            <SettingSelect
+              value={settingsDraft.modelContextStrategy}
+              onValueChange={(value) =>
+                setSettingsDraft((current) => ({
+                  ...current,
+                  modelContextStrategy: value as BrowserAppSettings['modelContextStrategy'],
+                }))
+              }
+              options={MODEL_CONTEXT_STRATEGY_OPTIONS}
+            />
+          </label>
 
           <label className="checkbox-row">
             <Checkbox

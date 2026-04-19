@@ -57,6 +57,25 @@ function testSessionScopedKeys(): void {
   assert.equal(sessionStorageRef.getItem(VOICE_API_KEY_SESSION), 'voice-secret');
 }
 
+function testModelContextStrategyPersistence(): void {
+  const localStorageRef = new MemoryStorage();
+  const sessionStorageRef = new MemoryStorage();
+  const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+
+  assert.equal(store.load().modelContextStrategy, 'last-user-turn');
+
+  const saved = store.save({
+    ...store.load(),
+    modelContextStrategy: 'full-history',
+  });
+
+  const persistedSettings = JSON.parse(localStorageRef.getItem(SETTINGS_KEY) ?? '{}') as {
+    modelContextStrategy?: string;
+  };
+  assert.equal(saved.modelContextStrategy, 'full-history');
+  assert.equal(persistedSettings.modelContextStrategy, 'full-history');
+}
+
 function testAllowAllOverride(): void {
   const localStorageRef = new MemoryStorage();
   const sessionStorageRef = new MemoryStorage();
@@ -124,6 +143,7 @@ function testRememberedKeys(): void {
 }
 
 testSessionScopedKeys();
+testModelContextStrategyPersistence();
 testAllowAllOverride();
 testLegacyApiKeyFallback();
 testRememberedKeys();

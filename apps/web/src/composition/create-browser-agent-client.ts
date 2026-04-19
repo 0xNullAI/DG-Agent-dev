@@ -66,6 +66,7 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       maxStrengthA: settings.maxStrengthA,
       maxStrengthB: settings.maxStrengthB,
     }),
+    modelContextStrategy: settings.modelContextStrategy,
     sessionStore: options.sessionStore,
     sessionTraceStore: options.sessionTraceStore,
     waveformLibrary: options.waveformLibrary,

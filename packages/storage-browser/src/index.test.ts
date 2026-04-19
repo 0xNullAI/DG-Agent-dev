@@ -29,6 +29,25 @@ class MemoryStorage {
 }
 
 describe('BrowserAppSettingsStore', () => {
+  it('defaults to last-user-turn context and persists model context strategy changes', () => {
+    const localStorageRef = new MemoryStorage();
+    const sessionStorageRef = new MemoryStorage();
+    const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+
+    expect(store.load().modelContextStrategy).toBe('last-user-turn');
+
+    const saved = store.save({
+      ...store.load(),
+      modelContextStrategy: 'full-history',
+    });
+
+    const persistedSettings = JSON.parse(localStorageRef.getItem(SETTINGS_KEY) ?? '{}') as {
+      modelContextStrategy?: string;
+    };
+    expect(saved.modelContextStrategy).toBe('full-history');
+    expect(persistedSettings.modelContextStrategy).toBe('full-history');
+  });
+
   it('persists API keys outside the main settings payload when remember is disabled', () => {
     const localStorageRef = new MemoryStorage();
     const sessionStorageRef = new MemoryStorage();
