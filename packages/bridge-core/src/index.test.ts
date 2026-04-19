@@ -138,6 +138,7 @@ class FakeAgentClient implements AgentClient {
     type: 'assistant-message-completed' | 'assistant-message-aborted';
     sessionId: string;
     message: ReturnType<typeof createMessage>;
+    sourceType: 'web' | 'qq' | 'telegram' | 'cli' | 'api' | 'system';
     reason?: string;
   }): void {
     this.listener?.(event as RuntimeEvent);
@@ -263,6 +264,7 @@ describe('bridge-core', () => {
       type: 'assistant-message-completed',
       sessionId: 'bridge:telegram:user-1',
       message: createMessage('assistant', 'reply back'),
+      sourceType: 'telegram',
     });
     await flushAsyncWork();
 
@@ -377,6 +379,7 @@ describe('bridge-core', () => {
       type: 'assistant-message-completed',
       sessionId: 'active-session',
       message: createMessage('assistant', 'reply after rebuild'),
+      sourceType: 'telegram',
     });
     await flushAsyncWork();
 
@@ -384,5 +387,35 @@ describe('bridge-core', () => {
       userId: 'user-1',
       text: 'reply after rebuild',
     });
+  });
+
+  it('does not relay web-originated replies from a bridge-bound session back to the adapter', async () => {
+    const adapter = new FakeAdapter();
+    const registry = new BridgeAdapterRegistry();
+    const client = new FakeAgentClient();
+    client.setSessionMetadata('active-session', {
+      bridgeOrigin: {
+        platform: 'telegram',
+        userId: 'user-1',
+        userName: 'Alice',
+      },
+    });
+
+    const manager = new BridgeManager({
+      client,
+      registry,
+      adapters: [adapter],
+    });
+
+    await manager.start();
+    client.emit({
+      type: 'assistant-message-completed',
+      sessionId: 'active-session',
+      message: createMessage('assistant', 'stay in chat only'),
+      sourceType: 'web',
+    });
+    await flushAsyncWork();
+
+    expect(adapter.sentMessages).toHaveLength(0);
   });
 });

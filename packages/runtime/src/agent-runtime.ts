@@ -230,6 +230,7 @@ export class AgentRuntime {
         type: 'user-message-accepted',
         sessionId: session.id,
         message: incomingMessage,
+        sourceType: input.context.sourceType,
       });
     }
 
@@ -248,6 +249,7 @@ export class AgentRuntime {
         type: 'assistant-message-completed',
         sessionId: session.id,
         message: assistantMessage,
+        sourceType: input.context.sourceType,
       });
     } catch (error) {
       if (abortController.signal.aborted || isAbortError(error)) {
@@ -261,6 +263,7 @@ export class AgentRuntime {
           sessionId: session.id,
           reason: REPLY_ABORTED_ERROR_MESSAGE,
           message: abortedMessage,
+          sourceType: input.context.sourceType,
         });
         throw new Error(REPLY_ABORTED_ERROR_MESSAGE);
       }
@@ -279,6 +282,7 @@ export class AgentRuntime {
         type: 'assistant-message-completed',
         sessionId: session.id,
         message: assistantErrorMessage,
+        sourceType: input.context.sourceType,
       });
     } finally {
       if (this.activeTurns.get(session.id) === abortController) {

@@ -177,6 +177,7 @@ export class BridgeManager {
 
   private async handleClientEvent(event: RuntimeEvent): Promise<void> {
     if (event.type !== 'assistant-message-completed' && event.type !== 'assistant-message-aborted') return;
+    if (event.sourceType !== 'qq' && event.sourceType !== 'telegram') return;
 
     const origin = this.originBySession.get(event.sessionId) ?? (await this.loadOriginFromSession(event.sessionId));
     if (!origin) {

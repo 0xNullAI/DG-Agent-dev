@@ -173,11 +173,11 @@ export type PolicyDecision =
   | { type: 'require-confirm'; reason: string };
 
 export type RuntimeEvent =
-  | { type: 'user-message-accepted'; sessionId: string; message: ConversationMessage }
+  | { type: 'user-message-accepted'; sessionId: string; message: ConversationMessage; sourceType: SourceType }
   | { type: 'assistant-message-delta'; sessionId: string; content: string }
   | { type: 'session-updated'; sessionId: string }
-  | { type: 'assistant-message-completed'; sessionId: string; message: ConversationMessage }
-  | { type: 'assistant-message-aborted'; sessionId: string; reason: string; message: ConversationMessage }
+  | { type: 'assistant-message-completed'; sessionId: string; message: ConversationMessage; sourceType: SourceType }
+  | { type: 'assistant-message-aborted'; sessionId: string; reason: string; message: ConversationMessage; sourceType: SourceType }
   | { type: 'tool-call-proposed'; sessionId: string; toolCall: ToolCall }
   | { type: 'timer-scheduled'; sessionId: string; label: string; dueAt: number }
   | { type: 'timer-fired'; sessionId: string; label: string; firedAt: number }

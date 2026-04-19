@@ -263,6 +263,7 @@ async function testBridgeManagerRoundTrip(): Promise<void> {
     type: 'assistant-message-completed',
     sessionId: 'bridge:telegram:user-1',
     message: createMessage('assistant', 'reply back'),
+    sourceType: 'telegram',
   });
   await flushAsyncWork();
 
@@ -377,6 +378,7 @@ async function testBridgeManagerRecoversPersistedReplyTarget(): Promise<void> {
     type: 'assistant-message-completed',
     sessionId: 'active-session',
     message: createMessage('assistant', 'reply after rebuild'),
+    sourceType: 'telegram',
   });
   await flushAsyncWork();
 
@@ -384,6 +386,36 @@ async function testBridgeManagerRecoversPersistedReplyTarget(): Promise<void> {
     userId: 'user-1',
     text: 'reply after rebuild',
   });
+}
+
+async function testBridgeManagerDoesNotRelayWebRepliesFromBridgeBoundSessions(): Promise<void> {
+  const adapter = new FakeAdapter();
+  const registry = new BridgeAdapterRegistry();
+  const client = new FakeAgentClient();
+  client.setSessionMetadata('active-session', {
+    bridgeOrigin: {
+      platform: 'telegram',
+      userId: 'user-1',
+      userName: 'Alice',
+    },
+  });
+
+  const manager = new BridgeManager({
+    client,
+    registry,
+    adapters: [adapter],
+  });
+
+  await manager.start();
+  client.emit({
+    type: 'assistant-message-completed',
+    sessionId: 'active-session',
+    message: createMessage('assistant', 'stay in chat only'),
+    sourceType: 'web',
+  });
+  await flushAsyncWork();
+
+  assert.equal(adapter.sentMessages.length, 0);
 }
 
 await testMessageQueue();
@@ -395,4 +427,5 @@ await testRegistryIgnoresStaleUnregister();
 await testBridgeManagerUsesResolvedActiveSession();
 await testBridgeManagerCoalescesStartStopStartWhileStarting();
 await testBridgeManagerRecoversPersistedReplyTarget();
+await testBridgeManagerDoesNotRelayWebRepliesFromBridgeBoundSessions();
 console.log('bridge-core self-test passed');
