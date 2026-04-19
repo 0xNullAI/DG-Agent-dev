@@ -104,7 +104,7 @@ export class BrowserSpeechRecognitionController implements SpeechRecognitionCont
   async transcribeOnce(request: SpeechRecognitionRequest = {}): Promise<string> {
     const RecognitionCtor = getNativeRecognitionCtor();
     if (!RecognitionCtor) {
-      throw new Error('Speech recognition is not supported in this browser.');
+      throw new Error('当前浏览器不支持语音识别');
     }
 
     return await new Promise<string>((resolve, reject) => {
@@ -138,7 +138,7 @@ export class BrowserSpeechRecognitionController implements SpeechRecognitionCont
         if (settled) return;
         settled = true;
         this.activeRecognition = null;
-        reject(new Error(event.error === 'aborted' ? SPEECH_ABORTED_ERROR_MESSAGE : event.error ?? 'Speech recognition failed.'));
+        reject(new Error(event.error === 'aborted' ? SPEECH_ABORTED_ERROR_MESSAGE : event.error ?? '语音识别失败'));
       };
 
       recognition.onend = () => {
@@ -170,14 +170,14 @@ export class BrowserSpeechSynthesizer implements SpeechSynthesizer {
 
   speak(text: string): Promise<void> {
     if (typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') {
-      return Promise.reject(new Error('Speech synthesis is not supported in this browser.'));
+      return Promise.reject(new Error('当前浏览器不支持语音播报'));
     }
 
     return new Promise<void>((resolve, reject) => {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = this.options.lang ?? 'zh-CN';
       utterance.onend = () => resolve();
-      utterance.onerror = () => reject(new Error('Speech synthesis failed.'));
+      utterance.onerror = () => reject(new Error('语音播报失败'));
       speechSynthesis.cancel();
       speechSynthesis.speak(utterance);
     });

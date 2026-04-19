@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentClient } from '@dg-agent/client';
 import { createEmptyDeviceState, type DeviceState, type RuntimeEvent, type RuntimeTraceEntry, type SessionSnapshot } from '@dg-agent/core';
-import { createSessionId } from '../utils/app-runtime-helpers.js';
 
 export interface UseRuntimeSessionStateOptions {
   client: AgentClient;
@@ -38,6 +37,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
   const [sessionTrace, setSessionTrace] = useState<RuntimeTraceEntry[]>([]);
   const [savedSessions, setSavedSessions] = useState<SessionSnapshot[]>([]);
   const [liveDeviceState, setLiveDeviceState] = useState<DeviceState>(createEmptyDeviceState());
+  const [replyBusy, setReplyBusy] = useState(false);
   const [streamingAssistantText, setStreamingAssistantText] = useState('');
   const onRuntimeEventRef = useRef(onRuntimeEvent);
   const syncRequestIdRef = useRef(0);
@@ -53,6 +53,11 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
   const clearStreamingAssistantText = useCallback(() => {
     setStreamingAssistantText('');
   }, []);
+
+  const refreshSavedSessions = useCallback(async (): Promise<void> => {
+    const sessions = await client.listSessions();
+    setSavedSessions(sessions);
+  }, [client]);
 
   const refreshCurrentSession = useCallback(
     async (sessionId = activeSessionId): Promise<void> => {
@@ -81,7 +86,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
       if (!active) return;
 
       setSavedSessions(sessions);
-      setActiveSessionId((current) => current ?? sessions[0]?.id ?? createSessionId());
+      setActiveSessionId((current) => current ?? sessions[0]?.id ?? null);
     }
 
     void bootstrap();
@@ -96,6 +101,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
 
     let active = true;
     const sessionId = activeSessionId;
+    setReplyBusy(false);
 
     async function syncCurrentSession(): Promise<void> {
       const requestId = ++syncRequestIdRef.current;
@@ -120,8 +126,13 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
 
       const isActiveSessionEvent = isActiveRuntimeSessionEvent(event, sessionId);
 
+      if (isActiveSessionEvent && event.type === 'user-message-accepted') {
+        setReplyBusy(true);
+      }
+
       if (event.type === 'assistant-message-delta') {
         if (isActiveSessionEvent) {
+          setReplyBusy(true);
           setStreamingAssistantText(event.content);
           onRuntimeEventRef.current?.(event);
         }
@@ -134,6 +145,10 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
 
       if (event.type === 'device-command-executed') {
         setLiveDeviceState(event.result.state);
+      }
+
+      if (isActiveSessionEvent && (event.type === 'assistant-message-completed' || event.type === 'assistant-message-aborted')) {
+        setReplyBusy(false);
       }
 
       if (isActiveSessionEvent && shouldClearStreamingForEvent(event)) {
@@ -149,7 +164,11 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
       }
 
       if (shouldRefreshSessionForEvent(event)) {
-        void syncCurrentSession();
+        if (isActiveSessionEvent) {
+          void syncCurrentSession();
+        } else {
+          void refreshSavedSessions();
+        }
       }
     });
 
@@ -157,7 +176,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
       active = false;
       unsubscribe();
     };
-  }, [activeSessionId, client, enabled]);
+  }, [activeSessionId, client, enabled, refreshSavedSessions]);
 
   return {
     activeSessionId,
@@ -170,6 +189,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
     savedSessions,
     setSavedSessions,
     liveDeviceState,
+    replyBusy,
     streamingAssistantText,
     clearStreamingAssistantText,
     setStreamingAssistantText,

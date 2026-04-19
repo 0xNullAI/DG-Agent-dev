@@ -20,7 +20,7 @@ export class ToolRegistry {
   async resolve(toolCall: ToolCall): Promise<ToolExecutionPlan> {
     const handler = this.handlers.get(toolCall.name);
     if (!handler) {
-      throw new Error(`Unknown tool: ${toolCall.name}`);
+      throw new Error(`未知工具：${toolCall.name}`);
     }
 
     return handler.toExecutionPlan(toolCall.args);
@@ -50,7 +50,7 @@ const channelSchema = z.enum(['A', 'B']);
 const channelParameter = {
   type: 'string',
   enum: ['A', 'B'],
-  description: '通道 A 或 B。',
+  description: '通道 A 或 B',
 } as const;
 const MAX_START_STRENGTH_HINT = 10;
 const MAX_ADJUST_STEP_HINT = 10;
@@ -97,12 +97,12 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
               type: 'integer',
               minimum: 0,
               maximum: MAX_START_STRENGTH_HINT,
-              description: '启动时的初始强度。建议从 5-8 起步，再根据反馈小步推进。',
+              description: '启动时的初始强度（建议从 5-8 起步，再根据反馈小步推进）',
             },
             waveformId: await buildWaveformIdParameter(deps.waveformLibrary),
             loop: {
               type: 'boolean',
-              description: '是否循环播放波形，默认 true。',
+              description: '是否循环播放波形，默认 true',
             },
           },
           required: ['channel', 'strength', 'waveformId'],
@@ -157,7 +157,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
         properties: {
           channel: {
             ...channelParameter,
-            description: '要停止的通道；不传则停止全部通道。',
+            description: '要停止的通道；不传则停止全部通道',
           },
         },
       },
@@ -202,7 +202,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
             type: 'integer',
             minimum: -MAX_ADJUST_STEP_HINT,
             maximum: MAX_ADJUST_STEP_HINT,
-            description: `本次变化量。正数增加，负数降低；建议保持在 ±${MAX_ADJUST_STEP_HINT} 以内。`,
+            description: `本次变化量（正数增加，负数降低；建议保持在 ±${MAX_ADJUST_STEP_HINT} 以内）`,
           },
         },
         required: ['channel', 'delta'],
@@ -253,7 +253,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
             waveformId: await buildWaveformIdParameter(deps.waveformLibrary),
             loop: {
               type: 'boolean',
-              description: '是否循环播放波形，默认 true。',
+              description: '是否循环播放波形（默认 true）',
             },
           },
           required: ['channel', 'waveformId'],
@@ -272,7 +272,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 
       const waveformId = parsed.waveformId ?? parsed.waveform;
       if (!waveformId) {
-        throw new Error('change_wave 缺少 waveformId 参数。');
+        throw new Error('change_wave 缺少 waveformId 参数');
       }
 
       const waveform = await resolveWaveform(deps.waveformLibrary, waveformId);
@@ -312,13 +312,13 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
             type: 'integer',
             minimum: 0,
             maximum: 200,
-            description: '脉冲期间的目标强度。仍然受设备上限和用户上限约束。',
+            description: '脉冲期间的目标强度（仍然受设备上限和用户上限约束）',
           },
           durationMs: {
             type: 'integer',
             minimum: 100,
             maximum: MAX_BURST_DURATION_HINT_MS,
-            description: `脉冲持续时间（毫秒）。建议保持在 100-${MAX_BURST_DURATION_HINT_MS}ms 内。`,
+            description: `脉冲持续时间（毫秒）（建议保持在 100-${MAX_BURST_DURATION_HINT_MS}ms 内）`,
           },
         },
         required: ['channel', 'strength', 'durationMs'],
@@ -336,7 +336,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 
       const durationMs = parsed.durationMs ?? parsed.duration_ms;
       if (durationMs == null) {
-        throw new Error('burst 缺少 durationMs 参数。');
+        throw new Error('burst 缺少 durationMs 参数');
       }
 
       return {
@@ -359,7 +359,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
     },
     definition: {
       name: 'emergency_stop',
-      description: '立即停止全部输出。仅在需要紧急终止时使用。',
+      description: '立即停止全部输出（仅在需要紧急终止时使用）',
       parameters: {
         type: 'object',
         properties: {},
@@ -390,11 +390,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
             type: 'integer',
             minimum: 1,
             maximum: 3600,
-            description: '倒计时秒数，范围 1-3600。',
+            description: '倒计时秒数（范围 1-3600）',
           },
           label: {
             type: 'string',
-            description: '给这次提醒起一个简短标签，方便到期时识别用途。',
+            description: '给这次提醒起一个简短标签，方便到期时识别用途',
           },
         },
         required: ['seconds', 'label'],
@@ -426,7 +426,7 @@ async function buildWaveformIdParameter(waveformLibrary: WaveformLibraryPort | u
   if (!waveformLibrary) {
     return {
       type: 'string',
-      description: '波形 ID。',
+      description: '波形 ID',
     };
   }
 
@@ -437,7 +437,7 @@ async function buildWaveformIdParameter(waveformLibrary: WaveformLibraryPort | u
   return {
     type: 'string',
     enum: waveformIds,
-    description: `波形 ID。${waveformDescription}`,
+    description: `波形 ID - ${waveformDescription}`,
   };
 }
 
@@ -457,7 +457,7 @@ function buildWaveformSummaryText(
   }>,
 ): string {
   if (waveforms.length === 0) {
-    return '当前波形库为空。';
+    return '当前波形库为空';
   }
 
   return waveforms
@@ -470,7 +470,7 @@ async function resolveWaveform(
   waveformId: string,
 ) {
   if (!waveformLibrary) {
-    throw new Error(`波形库不可用，无法解析 "${waveformId}"。`);
+    throw new Error(`波形库不可用，无法解析 "${waveformId}"`);
   }
 
   const waveform = await waveformLibrary.getById(waveformId);

@@ -59,7 +59,7 @@ export function RuntimeStatusPanel({
   ];
 
   const bridgeLines = [
-    `社交桥接：${settings.bridge.enabled ? '已开启' : '已关闭'}`,
+    `软件桥接：${settings.bridge.enabled ? '已开启' : '已关闭'}`,
     `桥接运行中：${bridgeStatus?.started ? '是' : '否'}`,
     `桥接队列：${bridgeStatus?.pendingMessages ?? 0}`,
     `背景行为：${settings.backgroundBehavior}`,
@@ -70,7 +70,7 @@ export function RuntimeStatusPanel({
     <Card>
       <CardHeader className="px-4 pb-3">
         <CardTitle>运行概览</CardTitle>
-        <CardDescription>把设备、模型、语音和桥接分开看，避免所有东西都堆在设备下面。</CardDescription>
+        <CardDescription>把设备、模型、语音和桥接分开看，避免所有东西都堆在设备下面</CardDescription>
       </CardHeader>
 
       <CardContent className="px-4 pt-0">

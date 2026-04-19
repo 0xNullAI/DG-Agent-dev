@@ -14,21 +14,24 @@ export function BridgePanel({ enabled, bridgeStatus, bridgeLogs }: BridgePanelPr
     <Card>
       <CardHeader className="px-4 pb-3">
         <CardTitle>桥接状态</CardTitle>
-        <CardDescription>查看 Telegram / QQ 桥接连接状态与最近日志。</CardDescription>
+        <CardDescription>查看 QQ / Telegram 桥接是否启动、是否连接，以及最近日志</CardDescription>
       </CardHeader>
 
       <CardContent className="px-4 pt-0">
         <div className="flex flex-wrap gap-2">
+          <Badge variant={!enabled ? 'default' : bridgeStatus?.started ? 'success' : 'warning'}>
+            {!enabled ? '桥接未启用' : bridgeStatus?.started ? '桥接管理器已启动' : '桥接管理器已停止'}
+          </Badge>
+
           {(bridgeStatus?.adapters ?? []).map((adapter) => (
             <Badge key={adapter.platform} variant={adapter.connected ? 'success' : 'default'}>
               {adapter.platform}：{adapter.connected ? '已连接' : '未连接'}
             </Badge>
           ))}
-          {!enabled && <Badge variant="default">桥接功能未启用</Badge>}
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
-          {bridgeLogs.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有桥接日志。</div>}
+          {bridgeLogs.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有桥接日志</div>}
           {bridgeLogs.map((entry, index) => (
             <pre
               key={`${entry.timestamp}-${index}`}

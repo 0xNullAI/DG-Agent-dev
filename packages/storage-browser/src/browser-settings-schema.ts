@@ -33,6 +33,7 @@ export const settingsSchema = z.object({
       qq: z.object({
         enabled: z.boolean(),
         wsUrl: z.string(),
+        accessToken: z.string().optional(),
         allowUsers: z.array(z.string()),
         allowGroups: z.array(z.string()),
         permissionMode: z.enum(['confirm', 'allow-all']),

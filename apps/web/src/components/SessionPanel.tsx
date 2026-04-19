@@ -114,7 +114,7 @@ export function SessionPanel({
           <div className="space-y-1">
             {visibleSessions.length === 0 && (
               <div className="px-2 py-4 text-sm text-[var(--text-soft)]">
-                <div className="pl-3">还没有保存的会话。</div>
+                <div className="pl-3">还没有保存的会话</div>
               </div>
             )}
 

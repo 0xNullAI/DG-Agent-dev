@@ -9,13 +9,13 @@ export function getWebBluetoothAvailability(
     typeof navigator === 'undefined' ? undefined : (navigator as unknown as NavigatorBluetoothLike),
 ): WebBluetoothAvailability {
   if (!nav) {
-    return { supported: false, reason: 'Navigator is unavailable in this environment.' };
+    return { supported: false, reason: '当前环境中无法访问浏览器导航对象' };
   }
 
   if (!nav.bluetooth) {
     return {
       supported: false,
-      reason: 'Web Bluetooth is not available. Use Chrome/Edge over HTTPS or localhost.',
+      reason: '当前环境不支持 Web Bluetooth，请使用 Chrome 或 Edge，并通过 HTTPS 或 localhost 访问',
     };
   }
 
@@ -52,14 +52,14 @@ export class WebBluetoothDevicePort implements DevicePort {
 
     const bluetooth = this.nav?.bluetooth;
     if (!bluetooth) {
-      throw new Error('Web Bluetooth is unavailable.');
+      throw new Error('当前环境不支持 Web Bluetooth');
     }
 
     const nextDevice = await bluetooth.requestDevice(this.options.requestDeviceOptions ?? COYOTE_REQUEST_DEVICE_OPTIONS);
     const gatt = nextDevice.gatt;
 
     if (!gatt) {
-      throw new Error('Selected Bluetooth device does not expose GATT.');
+      throw new Error('所选蓝牙设备不支持 GATT');
     }
 
     const server = await gatt.connect();

@@ -55,20 +55,20 @@ function summarizeAssistantContent(content: string): string {
 
     const command = parsed.command;
     if (!command) {
-      return '工具执行完成，设备状态已更新。';
+      return '工具执行完成，设备状态已更新';
     }
 
     if (command.type === 'start') {
-      return `已执行启动指令：${command.channel ?? '通道'} 通道，强度 ${command.strength ?? 0}，波形 ${command.waveform?.id ?? '默认'}。`;
+      return `已执行启动指令：${command.channel ?? '通道'} 通道，强度 ${command.strength ?? 0}，波形 ${command.waveform?.id ?? '默认'}`;
     }
 
     if (command.type === 'stop') {
-      return `已执行停止指令：${command.channel ? `${command.channel} 通道` : '全部通道'}。`;
+      return `已执行停止指令：${command.channel ? `${command.channel} 通道` : '全部通道'}`;
     }
 
-    return '工具执行完成，设备状态已更新。';
+    return '工具执行完成，设备状态已更新';
   } catch {
-    return '工具执行完成，设备状态已更新。';
+    return '工具执行完成，设备状态已更新';
   }
 }
 

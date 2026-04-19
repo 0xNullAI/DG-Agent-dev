@@ -48,6 +48,37 @@ describe('BrowserAppSettingsStore', () => {
     expect(persistedSettings.modelContextStrategy).toBe('full-history');
   });
 
+  it('fills missing qq accessToken from defaults for legacy persisted settings', () => {
+    const localStorageRef = new MemoryStorage();
+    const sessionStorageRef = new MemoryStorage();
+    localStorageRef.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({
+        version: 1,
+        bridge: {
+          enabled: true,
+          qq: {
+            enabled: true,
+            wsUrl: 'ws://127.0.0.1:3001',
+            allowUsers: [],
+            allowGroups: [],
+            permissionMode: 'confirm',
+          },
+          telegram: {
+            enabled: false,
+            botToken: '',
+            proxyUrl: '',
+            allowUsers: [],
+            permissionMode: 'confirm',
+          },
+        },
+      }),
+    );
+
+    const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+    expect(store.load().bridge.qq.accessToken).toBe('');
+  });
+
   it('persists API keys outside the main settings payload when remember is disabled', () => {
     const localStorageRef = new MemoryStorage();
     const sessionStorageRef = new MemoryStorage();

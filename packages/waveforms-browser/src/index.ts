@@ -76,7 +76,7 @@ export class BrowserWaveformLibrary implements WaveformLibraryPort {
     }
 
     if (imported.length === 0) {
-      throw new Error('No supported waveform files were found.');
+      throw new Error('没有找到支持的波形文件');
     }
 
     const custom = await this.getCustomWaveforms();
@@ -98,7 +98,7 @@ function createImportedWaveform(fileName: string, frames: WaveFrame[]): Waveform
   return {
     id: safeId,
     name: baseName,
-    description: 'Imported from a Dungeonlab+pulse file.',
+    description: '从 Dungeonlab+pulse 文件导入',
     frames,
   };
 }
@@ -148,19 +148,19 @@ interface Section {
 export function parsePulseText(data: string): WaveFrame[] {
   const trimmed = data.trim();
   if (!/^Dungeonlab\+pulse:/i.test(trimmed)) {
-    throw new Error("Invalid pulse format: must start with 'Dungeonlab+pulse:'");
+    throw new Error("脉冲格式无效，必须以 'Dungeonlab+pulse:' 开头");
   }
 
   const cleanData = trimmed.replace(/^Dungeonlab\+pulse:/i, '');
   const sectionParts = cleanData.split('+section+');
   if (sectionParts.length === 0 || !sectionParts[0]) {
-    throw new Error('Invalid pulse data: no sections found.');
+    throw new Error('脉冲数据无效，未找到任何分段');
   }
 
   const firstPart = sectionParts[0];
   const equalIndex = firstPart.indexOf('=');
   if (equalIndex === -1) {
-    throw new Error("Invalid pulse format: missing '=' separator.");
+    throw new Error("脉冲格式无效，缺少 '=' 分隔符");
   }
 
   const sections: Section[] = [];
@@ -173,7 +173,7 @@ export function parsePulseText(data: string): WaveFrame[] {
 
     const slashIndex = sectionData.indexOf('/');
     if (slashIndex === -1) {
-      throw new Error(`Section ${index + 1} is missing '/' separator.`);
+      throw new Error(`第 ${index + 1} 段缺少 '/' 分隔符`);
     }
 
     const headerPart = sectionData.substring(0, slashIndex);
@@ -195,7 +195,7 @@ export function parsePulseText(data: string): WaveFrame[] {
     }
 
     if (shapePoints.length < 2) {
-      throw new Error(`Section ${index + 1} must contain at least 2 shape points.`);
+      throw new Error(`第 ${index + 1} 段至少需要 2 个形状点`);
     }
 
     if (enabled) {
@@ -210,7 +210,7 @@ export function parsePulseText(data: string): WaveFrame[] {
   }
 
   if (sections.length === 0) {
-    throw new Error('Invalid pulse data: no enabled sections.');
+    throw new Error('脉冲数据无效，没有启用的分段');
   }
 
   const frames: WaveFrame[] = [];
@@ -252,7 +252,7 @@ export function parsePulseText(data: string): WaveFrame[] {
   }
 
   if (frames.length === 0) {
-    throw new Error('Parsed waveform is empty.');
+    throw new Error('解析后的波形为空');
   }
 
   return frames;

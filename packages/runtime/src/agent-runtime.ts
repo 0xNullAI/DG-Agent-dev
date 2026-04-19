@@ -2,6 +2,7 @@ import type { DevicePort, LlmConversationItem, LlmPort, LoggerPort, PermissionPo
 import {
   createEmptyDeviceState,
   createMessage,
+  mergeBridgeOriginMetadata,
   type ActionContext,
   type ConversationMessage,
   type ModelContextStrategy,
@@ -202,10 +203,11 @@ export class AgentRuntime {
         this.enqueueSystemWork(input.sessionId, { kind: 'follow-up', input });
         return;
       }
-      throw new Error('Another reply is already in progress for this session.');
+      throw new Error('当前会话已有回复正在进行中');
     }
 
     const session = await this.ensureSession(input.sessionId);
+    session.metadata = mergeBridgeOriginMetadata(session.metadata, input.context);
     const persistIncomingMessage = input.persistMessage ?? input.context.sourceType !== 'system';
     const incomingMessage = persistIncomingMessage ? createIncomingMessage(input) : null;
     const abortController = new AbortController();
@@ -376,7 +378,7 @@ export class AgentRuntime {
         }
         if (shouldStopTurnForDisconnectedDevice(toolCall.name, output)) {
           return {
-            finalAssistantText: '设备未连接，请先点击“连接设备”。',
+            finalAssistantText: '设备未连接，请先点击“连接设备”',
           };
         }
 
@@ -638,7 +640,7 @@ function getEphemeralDeniedTrigger(toolCall: { name: string }, output: string): 
     if ((kind !== 'tool-denied' && kind !== 'tool-failed') || !parsed.error) {
       return null;
     }
-    if (parsed.error === '设备未连接。') {
+    if (parsed.error === '设备未连接') {
       return null;
     }
 
@@ -659,7 +661,7 @@ function shouldStopTurnForDisconnectedDevice(toolName: string, output: string): 
 
   try {
     const parsed = JSON.parse(output) as { error?: string };
-    return parsed.error === '设备未连接。';
+    return parsed.error === '设备未连接';
   } catch {
     return false;
   }

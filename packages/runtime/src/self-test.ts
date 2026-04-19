@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import type { DevicePort, LlmPort, PermissionPort, SessionStorePort } from '@dg-agent/contracts';
 import {
   createEmptyDeviceState,
+  getBridgeOriginMetadata,
   createMessage,
   type DeviceCommand,
   type DeviceCommandResult,
@@ -427,6 +428,30 @@ async function main(): Promise<void> {
 
     assert.deepEqual(llm.conversations[0], testCase.expected);
   }
+
+  const bridgeOriginRuntime = new AgentRuntime({
+    device: new TestDevice(),
+    llm: new TestLlm(),
+    permission: new TestPermission(),
+    waveformLibrary: createBasicWaveformLibrary(),
+  });
+  await bridgeOriginRuntime.sendUserMessage({
+    sessionId: 'bridge-active-session',
+    text: 'hello from group',
+    context: {
+      sessionId: 'bridge-active-session',
+      sourceType: 'qq',
+      sourceUserId: 'group:123456',
+      sourceUserName: 'Test Group',
+      traceId: 'trace-bridge-origin',
+    },
+  });
+  const bridgeOriginSession = await bridgeOriginRuntime.getSessionSnapshot('bridge-active-session');
+  assert.deepEqual(getBridgeOriginMetadata(bridgeOriginSession.metadata), {
+    platform: 'qq',
+    userId: 'group:123456',
+    userName: 'Test Group',
+  });
 
   const quotaEvents: RuntimeEvent[] = [];
   const quotaRuntime = new AgentRuntime({

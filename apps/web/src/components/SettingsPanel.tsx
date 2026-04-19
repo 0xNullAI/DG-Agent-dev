@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { PROXY_TTS_SPEAKERS } from '@dg-agent/audio-browser';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -45,6 +45,10 @@ const MODEL_CONTEXT_STRATEGY_OPTIONS: SelectOption[] = [
   { value: 'full-history', label: '无限制' },
 ];
 
+function formatCommaSeparatedInput(values: string[]): string {
+  return values.join(', ');
+}
+
 function SettingSelect({
   value,
   onValueChange,
@@ -80,6 +84,35 @@ export function SettingsPanel({
   const [settingsTab, setSettingsTab] = useState<'general' | 'model' | 'safety' | 'bridge' | 'voice'>('general');
   const selectedProviderDef = getProviderDefinition(settingsDraft.provider.providerId);
   const selectedSavedPromptPreset = settingsDraft.savedPromptPresets.find((preset) => preset.id === settingsDraft.promptPresetId);
+  const [qqAllowUsersInput, setQqAllowUsersInput] = useState(() => formatCommaSeparatedInput(settingsDraft.bridge.qq.allowUsers));
+  const [qqAllowGroupsInput, setQqAllowGroupsInput] = useState(() => formatCommaSeparatedInput(settingsDraft.bridge.qq.allowGroups));
+  const [telegramAllowUsersInput, setTelegramAllowUsersInput] = useState(() =>
+    formatCommaSeparatedInput(settingsDraft.bridge.telegram.allowUsers),
+  );
+
+  useEffect(() => {
+    const formatted = formatCommaSeparatedInput(settingsDraft.bridge.qq.allowUsers);
+    const normalizedLocal = formatCommaSeparatedInput(parseCommaSeparated(qqAllowUsersInput));
+    if (formatted !== normalizedLocal) {
+      setQqAllowUsersInput(formatted);
+    }
+  }, [qqAllowUsersInput, settingsDraft.bridge.qq.allowUsers]);
+
+  useEffect(() => {
+    const formatted = formatCommaSeparatedInput(settingsDraft.bridge.qq.allowGroups);
+    const normalizedLocal = formatCommaSeparatedInput(parseCommaSeparated(qqAllowGroupsInput));
+    if (formatted !== normalizedLocal) {
+      setQqAllowGroupsInput(formatted);
+    }
+  }, [qqAllowGroupsInput, settingsDraft.bridge.qq.allowGroups]);
+
+  useEffect(() => {
+    const formatted = formatCommaSeparatedInput(settingsDraft.bridge.telegram.allowUsers);
+    const normalizedLocal = formatCommaSeparatedInput(parseCommaSeparated(telegramAllowUsersInput));
+    if (formatted !== normalizedLocal) {
+      setTelegramAllowUsersInput(formatted);
+    }
+  }, [settingsDraft.bridge.telegram.allowUsers, telegramAllowUsersInput]);
 
   function updateProviderField<K extends keyof BrowserAppSettings['provider']>(
     key: K,
@@ -190,626 +223,654 @@ export function SettingsPanel({
       <CardHeader className="settings-panel-header">
         <div className="min-w-0">
           <CardTitle>设置</CardTitle>
-          <CardDescription>管理主题、模型、安全、桥接与语音等偏好。</CardDescription>
+          <CardDescription>管理主题、模型、安全、桥接与语音等偏好</CardDescription>
         </div>
       </CardHeader>
 
       <CardContent className="settings-panel-content pt-0">
-      <div className="settings settings-grouped settings-panel-body">
-        <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as typeof settingsTab)} className="control-tabs-shell settings-panel-tabs">
-          <TabsList className="control-tabs grid w-full grid-cols-2 gap-0 md:grid-cols-5">
-            <TabsTrigger className="control-tab-trigger" value="general">常规</TabsTrigger>
-            <TabsTrigger className="control-tab-trigger" value="model">模型</TabsTrigger>
-            <TabsTrigger className="control-tab-trigger" value="safety">安全</TabsTrigger>
-            <TabsTrigger className="control-tab-trigger" value="bridge">桥接</TabsTrigger>
-            <TabsTrigger className="control-tab-trigger" value="voice">语音</TabsTrigger>
-          </TabsList>
-          <TabsContent value="general" className="settings-panel-tab-content">
-        <section className="settings-group">
-          <h3 className="settings-group-title">基础</h3>
+        <div className="settings settings-grouped settings-panel-body">
+          <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as typeof settingsTab)} className="control-tabs-shell settings-panel-tabs">
+            <TabsList className="control-tabs grid w-full grid-cols-2 gap-0 md:grid-cols-5">
+              <TabsTrigger className="control-tab-trigger" value="general">常规</TabsTrigger>
+              <TabsTrigger className="control-tab-trigger" value="model">模型</TabsTrigger>
+              <TabsTrigger className="control-tab-trigger" value="safety">安全</TabsTrigger>
+              <TabsTrigger className="control-tab-trigger" value="bridge">桥接</TabsTrigger>
+              <TabsTrigger className="control-tab-trigger" value="voice">语音</TabsTrigger>
+            </TabsList>
+            <TabsContent value="general" className="settings-panel-tab-content">
+              <section className="settings-group">
+                <h3 className="settings-group-title">基础</h3>
 
-          <label>
-            <span>主题</span>
-            <SettingSelect
-              value={settingsDraft.themeMode}
-              onValueChange={(value) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  themeMode: value as BrowserAppSettings['themeMode'],
-                }))
-              }
-              options={[
-                { value: 'auto', label: '跟随系统' },
-                { value: 'dark', label: '深色' },
-                { value: 'light', label: '浅色' },
-              ]}
-            />
-          </label>
+                <label>
+                  <span>主题</span>
+                  <SettingSelect
+                    value={settingsDraft.themeMode}
+                    onValueChange={(value) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        themeMode: value as BrowserAppSettings['themeMode'],
+                      }))
+                    }
+                    options={[
+                      { value: 'auto', label: '跟随系统' },
+                      { value: 'dark', label: '深色' },
+                      { value: 'light', label: '浅色' },
+                    ]}
+                  />
+                </label>
 
-          <label>
-            <span>设备来源</span>
-            <SettingSelect
-              value={settingsDraft.deviceMode}
-              onValueChange={(value) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  deviceMode: value as BrowserAppSettings['deviceMode'],
-                }))
-              }
-              options={[
-                { value: 'web-bluetooth', label: '浏览器蓝牙' },
-              ]}
-            />
-          </label>
+                <label>
+                  <span>设备来源</span>
+                  <SettingSelect
+                    value={settingsDraft.deviceMode}
+                    onValueChange={(value) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        deviceMode: value as BrowserAppSettings['deviceMode'],
+                      }))
+                    }
+                    options={[
+                      { value: 'web-bluetooth', label: '浏览器蓝牙' },
+                    ]}
+                  />
+                </label>
 
-          <label>
-            <span>模型来源</span>
-            <SettingSelect
-              value={settingsDraft.llmMode}
-              onValueChange={(value) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  llmMode: value as BrowserAppSettings['llmMode'],
-                }))
-              }
-              options={[
-                { value: 'provider-http', label: '服务提供方 HTTP' },
-              ]}
-            />
-          </label>
-        </section>
+                <label>
+                  <span>模型来源</span>
+                  <SettingSelect
+                    value={settingsDraft.llmMode}
+                    onValueChange={(value) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        llmMode: value as BrowserAppSettings['llmMode'],
+                      }))
+                    }
+                    options={[
+                      { value: 'provider-http', label: '服务提供方 HTTP' },
+                    ]}
+                  />
+                </label>
+              </section>
 
-        <section className="settings-group mt-6">
-          <h3 className="settings-group-title">模式与提示词</h3>
+              <section className="settings-group mt-6">
+                <h3 className="settings-group-title">模式与提示词</h3>
 
-          <label>
-            <span>模式</span>
-            <SettingSelect
-              value={settingsDraft.promptPresetId}
-              onValueChange={(value) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  promptPresetId: value,
-                }))
-              }
-              options={[
-                ...BUILTIN_PROMPT_PRESETS.map((preset) => ({ value: preset.id, label: preset.name })),
-                ...settingsDraft.savedPromptPresets.map((preset) => ({ value: preset.id, label: `${preset.name}（已保存）` })),
-              ]}
-            />
-          </label>
+                <label>
+                  <span>模式</span>
+                  <SettingSelect
+                    value={settingsDraft.promptPresetId}
+                    onValueChange={(value) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        promptPresetId: value,
+                      }))
+                    }
+                    options={[
+                      ...BUILTIN_PROMPT_PRESETS.map((preset) => ({ value: preset.id, label: preset.name })),
+                      ...settingsDraft.savedPromptPresets.map((preset) => ({ value: preset.id, label: `${preset.name}（已保存）` })),
+                    ]}
+                  />
+                </label>
 
-          <label>
-            <span>自定义提示词</span>
-            <Textarea
-              value={settingsDraft.customPrompt}
-              onChange={(event) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  customPrompt: event.target.value,
-                }))
-              }
-              rows={5}
-              placeholder="可选：在当前模式提示词上额外叠加你的自定义要求。"
-            />
-          </label>
+                <label>
+                  <span>自定义提示词</span>
+                  <Textarea
+                    value={settingsDraft.customPrompt}
+                    onChange={(event) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        customPrompt: event.target.value,
+                      }))
+                    }
+                    rows={5}
+                    placeholder="可选：在当前模式提示词上额外叠加你的自定义要求"
+                  />
+                </label>
 
-          <div className="settings-actions">
-            <Button variant="secondary" onClick={onSaveCurrentPromptPreset}>
-              保存提示词
+                <div className="settings-actions">
+                  <Button variant="secondary" onClick={onSaveCurrentPromptPreset}>
+                    保存提示词
+                  </Button>
+                  {selectedSavedPromptPreset && (
+                    <Button variant="destructive" onClick={() => onDeleteSavedPromptPreset(selectedSavedPromptPreset.id)}>
+                      删除提示词
+                    </Button>
+                  )}
+                </div>
+              </section>
+            </TabsContent>
+
+            <TabsContent value="model" className="settings-panel-tab-content">
+              <section className="settings-group">
+                <h3 className="settings-group-title">模型服务</h3>
+
+                <label>
+                  <span>服务提供方</span>
+                  <SettingSelect
+                    value={settingsDraft.provider.providerId}
+                    onValueChange={(value) => switchProvider(value as ProviderId)}
+                    options={PROVIDER_DEFINITIONS.map((provider) => ({
+                      value: provider.id,
+                      label: provider.browserSupported ? provider.name : `${provider.name}（当前浏览器不可用）`,
+                    }))}
+                  />
+                </label>
+
+                {selectedProviderDef?.hint && <div className="provider-hint">{selectedProviderDef.hint}</div>}
+
+                {selectedProviderDef?.fields.map((field) => renderProviderField(field))}
+
+                <label>
+                  <span>上下文策略</span>
+                  <SettingSelect
+                    value={settingsDraft.modelContextStrategy}
+                    onValueChange={(value) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        modelContextStrategy: value as BrowserAppSettings['modelContextStrategy'],
+                      }))
+                    }
+                    options={MODEL_CONTEXT_STRATEGY_OPTIONS}
+                  />
+                </label>
+
+                <label className="checkbox-row">
+                  <Checkbox
+                    checked={settingsDraft.rememberApiKey}
+                    onCheckedChange={(checked) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        rememberApiKey: Boolean(checked),
+                      }))
+                    }
+                  />
+                  <span>在当前设备记住 API 密钥</span>
+                </label>
+              </section>
+            </TabsContent>
+
+            <TabsContent value="safety" className="settings-panel-tab-content">
+              <section className="settings-group">
+                <h3 className="settings-group-title">安全</h3>
+
+                <label>
+                  <span>权限策略</span>
+                  <SettingSelect
+                    value={settingsDraft.permissionMode}
+                    onValueChange={(value) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        permissionMode: value as BrowserAppSettings['permissionMode'],
+                      }))
+                    }
+                    options={[
+                      { value: 'confirm', label: '每次都确认' },
+                      { value: 'timed', label: '确认一次后放行 5 分钟' },
+                      { value: 'allow-all', label: '全部放行' },
+                    ]}
+                  />
+                </label>
+
+                <label>
+                  <span>A 通道强度上限</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={200}
+                    value={settingsDraft.maxStrengthA}
+                    onChange={(event) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        maxStrengthA: clampStrengthSetting(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  <span>B 通道强度上限</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={200}
+                    value={settingsDraft.maxStrengthB}
+                    onChange={(event) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        maxStrengthB: clampStrengthSetting(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+
+                <label className="checkbox-row">
+                  <Checkbox
+                    checked={settingsDraft.safetyStopOnLeave}
+                    onCheckedChange={(checked) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        safetyStopOnLeave: Boolean(checked),
+                      }))
+                    }
+                  />
+                  <span>离开页面时自动停止设备输出</span>
+                </label>
+
+                <label className="checkbox-row">
+                  <Checkbox
+                    checked={settingsDraft.showSafetyNoticeOnStartup}
+                    onCheckedChange={(checked) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        showSafetyNoticeOnStartup: Boolean(checked),
+                      }))
+                    }
+                  />
+                  <span>启动时显示安全确认</span>
+                </label>
+
+                <label>
+                  <span>后台行为</span>
+                  <SettingSelect
+                    value={settingsDraft.backgroundBehavior}
+                    onValueChange={(value) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        backgroundBehavior: value as BrowserAppSettings['backgroundBehavior'],
+                      }))
+                    }
+                    options={[
+                      { value: 'stop', label: '切到后台时停止输出' },
+                      { value: 'keep', label: '切到后台后继续运行' },
+                    ]}
+                  />
+                </label>
+              </section>
+            </TabsContent>
+
+            <TabsContent value="bridge" className="settings-panel-tab-content">
+              <section className="settings-group">
+                <h3 className="settings-group-title">桥接</h3>
+
+                <label className="checkbox-row">
+                  <Checkbox
+                    checked={settingsDraft.bridge.enabled}
+                    onCheckedChange={(checked) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        bridge: {
+                          ...current.bridge,
+                          enabled: Boolean(checked),
+                        },
+                      }))
+                    }
+                  />
+                  <span>启用软件桥接</span>
+                </label>
+
+                {settingsDraft.bridge.enabled && (
+                  <div className="bridge-settings">
+                    <label className="checkbox-row">
+                      <Checkbox
+                        checked={settingsDraft.bridge.qq.enabled}
+                        onCheckedChange={(checked) =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            bridge: {
+                              ...current.bridge,
+                              qq: {
+                                ...current.bridge.qq,
+                                enabled: Boolean(checked),
+                              },
+                            },
+                          }))
+                        }
+                      />
+                      <span>启用 QQ Napcat 桥接</span>
+                    </label>
+
+                    {settingsDraft.bridge.qq.enabled && (
+                      <>
+                        <label>
+                          <span>Napcat WebSocket Server 地址</span>
+                          <Input
+                            value={settingsDraft.bridge.qq.wsUrl}
+                            onChange={(event) =>
+                              setSettingsDraft((current) => ({
+                                ...current,
+                                bridge: {
+                                  ...current.bridge,
+                                  qq: {
+                                    ...current.bridge.qq,
+                                    wsUrl: event.target.value,
+                                  },
+                                },
+                              }))
+                            }
+                            placeholder="Napcat Websocket Server 的地址"
+                          />
+                        </label>
+
+                        <label>
+                          <span>NapCat WebSocket Token</span>
+                          <Input
+                            type="password"
+                            value={settingsDraft.bridge.qq.accessToken}
+                            onChange={(event) =>
+                              setSettingsDraft((current) => ({
+                                ...current,
+                                bridge: {
+                                  ...current.bridge,
+                                  qq: {
+                                    ...current.bridge.qq,
+                                    accessToken: event.target.value,
+                                  },
+                                },
+                              }))
+                            }
+                            placeholder="Napcat Websocket Server 设置的 Token"
+                          />
+                        </label>
+
+                        <label>
+                          <span>允许的 QQ 用户</span>
+                          <Input
+                            value={qqAllowUsersInput}
+                            onChange={(event) => {
+                              const nextValue = event.target.value;
+                              setQqAllowUsersInput(nextValue);
+                              setSettingsDraft((current) => ({
+                                ...current,
+                                bridge: {
+                                  ...current.bridge,
+                                  qq: {
+                                    ...current.bridge.qq,
+                                    allowUsers: parseCommaSeparated(nextValue),
+                                  },
+                                },
+                              }));
+                            }}
+                            placeholder="12345678, 23456789（逗号分隔）"
+                          />
+                        </label>
+
+                        <label>
+                          <span>允许的 QQ 群组</span>
+                          <Input
+                            value={qqAllowGroupsInput}
+                            onChange={(event) => {
+                              const nextValue = event.target.value;
+                              setQqAllowGroupsInput(nextValue);
+                              setSettingsDraft((current) => ({
+                                ...current,
+                                bridge: {
+                                  ...current.bridge,
+                                  qq: {
+                                    ...current.bridge.qq,
+                                    allowGroups: parseCommaSeparated(nextValue),
+                                  },
+                                },
+                              }));
+                            }}
+                            placeholder="123456789, 234567890（逗号分隔）"
+                          />
+                        </label>
+
+                        <label>
+                          <span>权限模式</span>
+                          <SettingSelect
+                            value={settingsDraft.bridge.qq.permissionMode}
+                            onValueChange={(value) =>
+                              setSettingsDraft((current) => ({
+                                ...current,
+                                bridge: {
+                                  ...current.bridge,
+                                  qq: {
+                                    ...current.bridge.qq,
+                                    permissionMode: value as BrowserAppSettings['bridge']['qq']['permissionMode'],
+                                  },
+                                },
+                              }))
+                            }
+                            options={[
+                              { value: 'confirm', label: '远程确认' },
+                              { value: 'allow-all', label: '全部放行' },
+                            ]}
+                          />
+                        </label>
+                      </>
+                    )}
+
+                    <Separator className="my-1.5" />
+
+                    <label className="checkbox-row">
+                      <Checkbox
+                        checked={settingsDraft.bridge.telegram.enabled}
+                        onCheckedChange={(checked) =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            bridge: {
+                              ...current.bridge,
+                              telegram: {
+                                ...current.bridge.telegram,
+                                enabled: Boolean(checked),
+                              },
+                            },
+                          }))
+                        }
+                      />
+                      <span>启用 Telegram 桥接</span>
+                    </label>
+
+                    {settingsDraft.bridge.telegram.enabled && (
+                      <>
+                        <label>
+                          <span>Telegram 机器人 Token</span>
+                          <Input
+                            type="password"
+                            value={settingsDraft.bridge.telegram.botToken}
+                            onChange={(event) =>
+                              setSettingsDraft((current) => ({
+                                ...current,
+                                bridge: {
+                                  ...current.bridge,
+                                  telegram: {
+                                    ...current.bridge.telegram,
+                                    botToken: event.target.value,
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                        </label>
+
+                        <label>
+                          <span>Telegram 代理地址</span>
+                          <Input
+                            value={settingsDraft.bridge.telegram.proxyUrl}
+                            onChange={(event) =>
+                              setSettingsDraft((current) => ({
+                                ...current,
+                                bridge: {
+                                  ...current.bridge,
+                                  telegram: {
+                                    ...current.bridge.telegram,
+                                    proxyUrl: event.target.value,
+                                  },
+                                },
+                              }))
+                            }
+                            placeholder="https://你的代理地址.example.com"
+                          />
+                        </label>
+
+                        <label>
+                          <span>Telegram 允许用户</span>
+                          <Input
+                            value={telegramAllowUsersInput}
+                            onChange={(event) => {
+                              const nextValue = event.target.value;
+                              setTelegramAllowUsersInput(nextValue);
+                              setSettingsDraft((current) => ({
+                                ...current,
+                                bridge: {
+                                  ...current.bridge,
+                                  telegram: {
+                                    ...current.bridge.telegram,
+                                    allowUsers: parseCommaSeparated(nextValue),
+                                  },
+                                },
+                              }));
+                            }}
+                            placeholder="123456789"
+                          />
+                        </label>
+
+                        <label>
+                          <span>Telegram 权限模式</span>
+                          <SettingSelect
+                            value={settingsDraft.bridge.telegram.permissionMode}
+                            onValueChange={(value) =>
+                              setSettingsDraft((current) => ({
+                                ...current,
+                                bridge: {
+                                  ...current.bridge,
+                                  telegram: {
+                                    ...current.bridge.telegram,
+                                    permissionMode: value as BrowserAppSettings['bridge']['telegram']['permissionMode'],
+                                  },
+                                },
+                              }))
+                            }
+                            options={[
+                              { value: 'confirm', label: '远程确认' },
+                              { value: 'allow-all', label: '全部放行' },
+                            ]}
+                          />
+                        </label>
+                      </>
+                    )}
+                  </div>
+                )}
+              </section>
+
+            </TabsContent>
+
+            <TabsContent value="voice" className="settings-panel-tab-content">
+              <section className="settings-group">
+                <h3 className="settings-group-title">语音</h3>
+
+                <label className="checkbox-row">
+                  <Checkbox
+                    checked={settingsDraft.voiceInputEnabled}
+                    onCheckedChange={(checked) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        voiceInputEnabled: Boolean(checked),
+                      }))
+                    }
+                  />
+                  <span>启用语音输入</span>
+                </label>
+
+                <label className="checkbox-row">
+                  <Checkbox
+                    checked={settingsDraft.ttsEnabled}
+                    onCheckedChange={(checked) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        ttsEnabled: Boolean(checked),
+                      }))
+                    }
+                  />
+                  <span>朗读 AI 回复</span>
+                </label>
+
+                <label>
+                  <span>语音后端</span>
+                  <SettingSelect
+                    value={settingsDraft.voice.mode}
+                    onValueChange={(value) => updateVoiceSettings('mode', value as BrowserAppSettings['voice']['mode'])}
+                    options={[
+                      { value: 'browser', label: '浏览器原生' },
+                      { value: 'dashscope-proxy', label: 'DashScope 代理' },
+                    ]}
+                  />
+                </label>
+
+                {settingsDraft.voice.mode === 'dashscope-proxy' && (
+                  <div className="provider-hint">
+                    兼容旧版语音链路：浏览器采集麦克风，经过 WebSocket 代理进行 ASR/TTS，留空代理地址时使用内置免费代理
+                  </div>
+                )}
+
+                <label>
+                  <span>语音语言</span>
+                  <Input
+                    value={settingsDraft.voiceLanguage}
+                    onChange={(event) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        voiceLanguage: event.target.value,
+                      }))
+                    }
+                    placeholder="zh-CN"
+                  />
+                </label>
+
+                {settingsDraft.voice.mode === 'dashscope-proxy' && (
+                  <>
+                    <label>
+                      <span>语音 API 密钥</span>
+                      <Input
+                        type="password"
+                        value={settingsDraft.voice.apiKey}
+                        onChange={(event) => updateVoiceSettings('apiKey', event.target.value)}
+                        placeholder="sk-...（留空使用免费共享额度）"
+                      />
+                    </label>
+
+                    <label>
+                      <span>语音代理地址</span>
+                      <Input
+                        value={settingsDraft.voice.proxyUrl}
+                        onChange={(event) => updateVoiceSettings('proxyUrl', event.target.value)}
+                        placeholder="留空使用默认免费代理"
+                      />
+                    </label>
+
+                    <label>
+                      <span>语音发音人</span>
+                      <SettingSelect
+                        value={settingsDraft.voice.speaker}
+                        onValueChange={(value) => updateVoiceSettings('speaker', value)}
+                        options={PROXY_TTS_SPEAKERS.map((speaker) => ({
+                          value: speaker.id,
+                          label: speaker.label,
+                        }))}
+                      />
+                    </label>
+
+                    <label className="checkbox-row">
+                      <Checkbox
+                        checked={settingsDraft.voice.autoStopEnabled}
+                        onCheckedChange={(checked) => updateVoiceSettings('autoStopEnabled', Boolean(checked))}
+                      />
+                      <span>静音后自动停止收音</span>
+                    </label>
+                  </>
+                )}
+              </section>
+            </TabsContent>
+          </Tabs>
+
+          <div className="settings-actions settings-actions-footer">
+            <div className="text-sm text-[var(--text-faint)]">设置会自动保存到当前浏览器</div>
+            <Button variant="secondary" onClick={onResetSettings}>
+              恢复默认
             </Button>
-            {selectedSavedPromptPreset && (
-              <Button variant="destructive" onClick={() => onDeleteSavedPromptPreset(selectedSavedPromptPreset.id)}>
-                删除提示词
-              </Button>
-            )}
           </div>
-        </section>
-          </TabsContent>
-
-          <TabsContent value="model" className="settings-panel-tab-content">
-        <section className="settings-group">
-          <h3 className="settings-group-title">模型服务</h3>
-
-          <label>
-            <span>服务提供方</span>
-            <SettingSelect
-              value={settingsDraft.provider.providerId}
-              onValueChange={(value) => switchProvider(value as ProviderId)}
-              options={PROVIDER_DEFINITIONS.map((provider) => ({
-                value: provider.id,
-                label: provider.browserSupported ? provider.name : `${provider.name}（当前浏览器不可用）`,
-              }))}
-            />
-          </label>
-
-          {selectedProviderDef?.hint && <div className="provider-hint">{selectedProviderDef.hint}</div>}
-
-          {selectedProviderDef?.fields.map((field) => renderProviderField(field))}
-
-          <label>
-            <span>上下文策略</span>
-            <SettingSelect
-              value={settingsDraft.modelContextStrategy}
-              onValueChange={(value) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  modelContextStrategy: value as BrowserAppSettings['modelContextStrategy'],
-                }))
-              }
-              options={MODEL_CONTEXT_STRATEGY_OPTIONS}
-            />
-          </label>
-
-          <label className="checkbox-row">
-            <Checkbox
-              checked={settingsDraft.rememberApiKey}
-              onCheckedChange={(checked) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  rememberApiKey: Boolean(checked),
-                }))
-              }
-            />
-            <span>在当前设备记住 API 密钥</span>
-          </label>
-        </section>
-          </TabsContent>
-
-          <TabsContent value="safety" className="settings-panel-tab-content">
-        <section className="settings-group">
-          <h3 className="settings-group-title">安全</h3>
-
-          <label>
-            <span>权限策略</span>
-            <SettingSelect
-              value={settingsDraft.permissionMode}
-              onValueChange={(value) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  permissionMode: value as BrowserAppSettings['permissionMode'],
-                }))
-              }
-              options={[
-                { value: 'confirm', label: '每次都确认' },
-                { value: 'timed', label: '确认一次后放行 5 分钟' },
-                { value: 'allow-all', label: '全部放行' },
-              ]}
-            />
-          </label>
-
-          <label>
-            <span>A 通道强度上限</span>
-            <Input
-              type="number"
-              min={0}
-              max={200}
-              value={settingsDraft.maxStrengthA}
-              onChange={(event) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  maxStrengthA: clampStrengthSetting(event.target.value),
-                }))
-              }
-            />
-          </label>
-
-          <label>
-            <span>B 通道强度上限</span>
-            <Input
-              type="number"
-              min={0}
-              max={200}
-              value={settingsDraft.maxStrengthB}
-              onChange={(event) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  maxStrengthB: clampStrengthSetting(event.target.value),
-                }))
-              }
-            />
-          </label>
-
-          <label className="checkbox-row">
-            <Checkbox
-              checked={settingsDraft.safetyStopOnLeave}
-              onCheckedChange={(checked) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  safetyStopOnLeave: Boolean(checked),
-                }))
-              }
-            />
-            <span>离开页面时自动停止设备输出</span>
-          </label>
-
-          <label className="checkbox-row">
-            <Checkbox
-              checked={settingsDraft.showSafetyNoticeOnStartup}
-              onCheckedChange={(checked) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  showSafetyNoticeOnStartup: Boolean(checked),
-                }))
-              }
-            />
-            <span>启动时显示安全确认</span>
-          </label>
-
-          <label>
-            <span>后台行为</span>
-            <SettingSelect
-              value={settingsDraft.backgroundBehavior}
-              onValueChange={(value) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  backgroundBehavior: value as BrowserAppSettings['backgroundBehavior'],
-                }))
-              }
-              options={[
-                { value: 'stop', label: '切到后台时停止输出' },
-                { value: 'keep', label: '切到后台后继续运行' },
-              ]}
-            />
-          </label>
-        </section>
-          </TabsContent>
-
-          <TabsContent value="bridge" className="settings-panel-tab-content">
-        <section className="settings-group">
-          <h3 className="settings-group-title">桥接</h3>
-
-          <label className="checkbox-row">
-            <Checkbox
-              checked={settingsDraft.bridge.enabled}
-              onCheckedChange={(checked) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  bridge: {
-                    ...current.bridge,
-                    enabled: Boolean(checked),
-                  },
-                }))
-              }
-            />
-            <span>启用社交桥接</span>
-          </label>
-
-          {settingsDraft.bridge.enabled && (
-            <div className="bridge-settings">
-              <label className="checkbox-row">
-                <Checkbox
-                  checked={settingsDraft.bridge.qq.enabled}
-                  onCheckedChange={(checked) =>
-                    setSettingsDraft((current) => ({
-                      ...current,
-                      bridge: {
-                        ...current.bridge,
-                        qq: {
-                          ...current.bridge.qq,
-                          enabled: Boolean(checked),
-                        },
-                      },
-                    }))
-                  }
-                />
-                <span>启用 QQ 桥接</span>
-              </label>
-
-              {settingsDraft.bridge.qq.enabled && (
-                <>
-                  <label>
-                    <span>QQ WebSocket 地址</span>
-                    <Input
-                      value={settingsDraft.bridge.qq.wsUrl}
-                      onChange={(event) =>
-                        setSettingsDraft((current) => ({
-                          ...current,
-                          bridge: {
-                            ...current.bridge,
-                            qq: {
-                              ...current.bridge.qq,
-                              wsUrl: event.target.value,
-                            },
-                          },
-                        }))
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>QQ 允许用户</span>
-                    <Input
-                      value={settingsDraft.bridge.qq.allowUsers.join(', ')}
-                      onChange={(event) =>
-                        setSettingsDraft((current) => ({
-                          ...current,
-                          bridge: {
-                            ...current.bridge,
-                            qq: {
-                              ...current.bridge.qq,
-                              allowUsers: parseCommaSeparated(event.target.value),
-                            },
-                          },
-                        }))
-                      }
-                      placeholder="12345678, 23456789"
-                    />
-                  </label>
-
-                  <label>
-                    <span>QQ 允许群组</span>
-                    <Input
-                      value={settingsDraft.bridge.qq.allowGroups.join(', ')}
-                      onChange={(event) =>
-                        setSettingsDraft((current) => ({
-                          ...current,
-                          bridge: {
-                            ...current.bridge,
-                            qq: {
-                              ...current.bridge.qq,
-                              allowGroups: parseCommaSeparated(event.target.value),
-                            },
-                          },
-                        }))
-                      }
-                      placeholder="123456789"
-                    />
-                  </label>
-
-                  <label>
-                    <span>QQ 权限模式</span>
-                    <SettingSelect
-                      value={settingsDraft.bridge.qq.permissionMode}
-                      onValueChange={(value) =>
-                        setSettingsDraft((current) => ({
-                          ...current,
-                          bridge: {
-                            ...current.bridge,
-                            qq: {
-                              ...current.bridge.qq,
-                              permissionMode: value as BrowserAppSettings['bridge']['qq']['permissionMode'],
-                            },
-                          },
-                        }))
-                      }
-                      options={[
-                        { value: 'confirm', label: '远程确认' },
-                        { value: 'allow-all', label: '全部放行' },
-                      ]}
-                    />
-                  </label>
-                </>
-              )}
-
-              <Separator className="my-1.5" />
-
-              <label className="checkbox-row">
-                <Checkbox
-                  checked={settingsDraft.bridge.telegram.enabled}
-                  onCheckedChange={(checked) =>
-                    setSettingsDraft((current) => ({
-                      ...current,
-                      bridge: {
-                        ...current.bridge,
-                        telegram: {
-                          ...current.bridge.telegram,
-                          enabled: Boolean(checked),
-                        },
-                      },
-                    }))
-                  }
-                />
-                <span>启用 Telegram 桥接</span>
-              </label>
-
-              {settingsDraft.bridge.telegram.enabled && (
-                <>
-                  <label>
-                    <span>Telegram 机器人 Token</span>
-                    <Input
-                      type="password"
-                      value={settingsDraft.bridge.telegram.botToken}
-                      onChange={(event) =>
-                        setSettingsDraft((current) => ({
-                          ...current,
-                          bridge: {
-                            ...current.bridge,
-                            telegram: {
-                              ...current.bridge.telegram,
-                              botToken: event.target.value,
-                            },
-                          },
-                        }))
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>Telegram 代理地址</span>
-                    <Input
-                      value={settingsDraft.bridge.telegram.proxyUrl}
-                      onChange={(event) =>
-                        setSettingsDraft((current) => ({
-                          ...current,
-                          bridge: {
-                            ...current.bridge,
-                            telegram: {
-                              ...current.bridge.telegram,
-                              proxyUrl: event.target.value,
-                            },
-                          },
-                        }))
-                      }
-                      placeholder="https://你的代理地址.example.com"
-                    />
-                  </label>
-
-                  <label>
-                    <span>Telegram 允许用户</span>
-                    <Input
-                      value={settingsDraft.bridge.telegram.allowUsers.join(', ')}
-                      onChange={(event) =>
-                        setSettingsDraft((current) => ({
-                          ...current,
-                          bridge: {
-                            ...current.bridge,
-                            telegram: {
-                              ...current.bridge.telegram,
-                              allowUsers: parseCommaSeparated(event.target.value),
-                            },
-                          },
-                        }))
-                      }
-                      placeholder="123456789"
-                    />
-                  </label>
-
-                  <label>
-                    <span>Telegram 权限模式</span>
-                    <SettingSelect
-                      value={settingsDraft.bridge.telegram.permissionMode}
-                      onValueChange={(value) =>
-                        setSettingsDraft((current) => ({
-                          ...current,
-                          bridge: {
-                            ...current.bridge,
-                            telegram: {
-                              ...current.bridge.telegram,
-                              permissionMode: value as BrowserAppSettings['bridge']['telegram']['permissionMode'],
-                            },
-                          },
-                        }))
-                      }
-                      options={[
-                        { value: 'confirm', label: '远程确认' },
-                        { value: 'allow-all', label: '全部放行' },
-                      ]}
-                    />
-                  </label>
-                </>
-              )}
-            </div>
-          )}
-        </section>
-
-          </TabsContent>
-
-          <TabsContent value="voice" className="settings-panel-tab-content">
-        <section className="settings-group">
-          <h3 className="settings-group-title">语音</h3>
-
-          <label className="checkbox-row">
-            <Checkbox
-              checked={settingsDraft.voiceInputEnabled}
-              onCheckedChange={(checked) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  voiceInputEnabled: Boolean(checked),
-                }))
-              }
-            />
-            <span>启用语音输入</span>
-          </label>
-
-          <label className="checkbox-row">
-            <Checkbox
-              checked={settingsDraft.ttsEnabled}
-              onCheckedChange={(checked) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  ttsEnabled: Boolean(checked),
-                }))
-              }
-            />
-            <span>朗读 AI 回复</span>
-          </label>
-
-          <label>
-            <span>语音后端</span>
-            <SettingSelect
-              value={settingsDraft.voice.mode}
-              onValueChange={(value) => updateVoiceSettings('mode', value as BrowserAppSettings['voice']['mode'])}
-              options={[
-                { value: 'browser', label: '浏览器原生' },
-                { value: 'dashscope-proxy', label: 'DashScope 代理' },
-              ]}
-            />
-          </label>
-
-          {settingsDraft.voice.mode === 'dashscope-proxy' && (
-            <div className="provider-hint">
-              兼容旧版语音链路：浏览器采集麦克风，经过 WebSocket 代理进行 ASR/TTS。留空代理地址时使用内置免费代理。
-            </div>
-          )}
-
-          <label>
-            <span>语音语言</span>
-            <Input
-              value={settingsDraft.voiceLanguage}
-              onChange={(event) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  voiceLanguage: event.target.value,
-                }))
-              }
-              placeholder="zh-CN"
-            />
-          </label>
-
-          {settingsDraft.voice.mode === 'dashscope-proxy' && (
-            <>
-              <label>
-                <span>语音 API 密钥</span>
-                <Input
-                  type="password"
-                  value={settingsDraft.voice.apiKey}
-                  onChange={(event) => updateVoiceSettings('apiKey', event.target.value)}
-                  placeholder="sk-...（留空使用免费共享额度）"
-                />
-              </label>
-
-              <label>
-                <span>语音代理地址</span>
-                <Input
-                  value={settingsDraft.voice.proxyUrl}
-                  onChange={(event) => updateVoiceSettings('proxyUrl', event.target.value)}
-                  placeholder="留空使用默认免费代理"
-                />
-              </label>
-
-              <label>
-                <span>语音发音人</span>
-                <SettingSelect
-                  value={settingsDraft.voice.speaker}
-                  onValueChange={(value) => updateVoiceSettings('speaker', value)}
-                  options={PROXY_TTS_SPEAKERS.map((speaker) => ({
-                    value: speaker.id,
-                    label: speaker.label,
-                  }))}
-                />
-              </label>
-
-              <label className="checkbox-row">
-                <Checkbox
-                  checked={settingsDraft.voice.autoStopEnabled}
-                  onCheckedChange={(checked) => updateVoiceSettings('autoStopEnabled', Boolean(checked))}
-                />
-                <span>静音后自动停止收音</span>
-              </label>
-            </>
-          )}
-        </section>
-          </TabsContent>
-        </Tabs>
-
-        <div className="settings-actions settings-actions-footer">
-          <div className="text-sm text-[var(--text-faint)]">设置会自动保存到当前浏览器。</div>
-          <Button variant="secondary" onClick={onResetSettings}>
-            恢复默认
-          </Button>
         </div>
-      </div>
       </CardContent>
     </Card>
   );

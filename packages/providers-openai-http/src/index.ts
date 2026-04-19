@@ -87,7 +87,7 @@ export class OpenAiHttpLlmPort implements LlmPort {
     });
 
     if (!response.ok) {
-      throw new Error(`Provider HTTP error ${response.status}: ${await response.text()}`);
+      throw new Error(`模型服务 HTTP 错误 ${response.status}: ${await response.text()}`);
     }
 
     if (streaming && input.onTextDelta) {
@@ -97,7 +97,7 @@ export class OpenAiHttpLlmPort implements LlmPort {
     const parsed = chatResponseSchema.parse(await response.json());
     const firstChoice = parsed.choices[0];
     if (!firstChoice) {
-      throw new Error('Chat Completions response contained no choices.');
+      throw new Error('Chat Completions 响应中没有可用结果');
     }
 
     const message = firstChoice.message;
@@ -131,7 +131,7 @@ export class OpenAiHttpLlmPort implements LlmPort {
     });
 
     if (!response.ok) {
-      throw new Error(`Provider HTTP error ${response.status}: ${await response.text()}`);
+      throw new Error(`模型服务 HTTP 错误 ${response.status}: ${await response.text()}`);
     }
 
     if (streaming && input.onTextDelta) {
@@ -164,7 +164,7 @@ async function parseResponsesStream(
 ): Promise<LlmTurnResult> {
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error('Streaming response body is unavailable.');
+    throw new Error('流式响应体不可用');
   }
 
   const decoder = new TextDecoder();
@@ -241,7 +241,7 @@ async function parseChatCompletionsStream(
 ): Promise<LlmTurnResult> {
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error('Streaming response body is unavailable.');
+    throw new Error('流式响应体不可用');
   }
 
   const decoder = new TextDecoder();

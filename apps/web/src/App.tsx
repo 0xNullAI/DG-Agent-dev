@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type BridgeLogEntry, type BridgeManagerStatus } from '@dg-agent/bridge-core';
+import { type BridgeLogEntry, type BridgeManagerStatus, type MessageOrigin } from '@dg-agent/bridge-core';
 import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core';
 import { BrowserAppSettingsStore, type BrowserAppSettings } from '@dg-agent/storage-browser';
 import { BrowserSafetyGuard } from '@dg-agent/safety-browser';
@@ -63,34 +63,40 @@ function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): s
 
 function localizeToastText(text: string): string {
   if (/Device is not connected\./i.test(text)) {
-    return '设备尚未连接。';
+    return '设备尚未连接';
   }
   if (/Cold-start strength is capped at (\d+)/i.test(text)) {
     const match = text.match(/Cold-start strength is capped at (\d+)/i);
-    return `冷启动强度上限为 ${match?.[1] ?? '10'}。`;
+    return `冷启动强度上限为 ${match?.[1] ?? '10'}`;
   }
   if (/Tool calls for this turn are capped at (\d+)/i.test(text)) {
     const match = text.match(/Tool calls for this turn are capped at (\d+)/i);
-    return `当前轮次最多只能调用 ${match?.[1] ?? ''} 次工具。`;
+    return `当前轮次最多只能调用 ${match?.[1] ?? ''} 次工具`;
   }
   if (/adjust_strength is capped at (\d+)/i.test(text)) {
     const match = text.match(/adjust_strength is capped at (\d+)/i);
-    return `本轮 adjust_strength 最多只能调用 ${match?.[1] ?? ''} 次。`;
+    return `本轮 adjust_strength 最多只能调用 ${match?.[1] ?? ''} 次`;
   }
   if (/burst is capped at (\d+)/i.test(text)) {
     const match = text.match(/burst is capped at (\d+)/i);
-    return `本轮 burst 最多只能调用 ${match?.[1] ?? ''} 次。`;
+    return `本轮 burst 最多只能调用 ${match?.[1] ?? ''} 次`;
   }
   if (/requires an already active channel/i.test(text)) {
-    return '当前通道还没有运行，不能直接执行 burst，请先启动通道。';
+    return '当前通道还没有运行，不能直接执行 burst，请先启动通道';
   }
   if (/A mutating action requires permission\./i.test(text)) {
-    return '该操作会修改设备状态，需要先获得权限。';
+    return '该操作会修改设备状态，需要先获得权限';
   }
   return text;
 }
 
 export function App() {
+  const activeSessionIdRef = useRef<string | null>(null);
+  const bridgeSessionResolverRef = useRef<(origin: MessageOrigin) => Promise<string | null> | string | null>(
+    () => activeSessionIdRef.current,
+  );
+  const resolveBridgeSessionId = useCallback((origin: MessageOrigin) => bridgeSessionResolverRef.current(origin), []);
+
   const settingsStore = useMemo(
     () =>
       new BrowserAppSettingsStore({
@@ -104,7 +110,7 @@ export function App() {
   const [pendingPermission, setPendingPermission] = useState<PendingPermissionRequest | null>(null);
   const [bridgeLogs, setBridgeLogs] = useState<BridgeLogEntry[]>([]);
   const [bridgeStatus, setBridgeStatus] = useState<BridgeManagerStatus | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [pendingSend, setPendingSend] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [toastVisibility, setToastVisibility] = useState<Record<string, boolean>>({});
@@ -128,6 +134,7 @@ export function App() {
     bridgeManager,
     resetPermissionGrants,
   } = useBrowserAppServices({
+    resolveBridgeSessionId,
     settings,
     setPendingPermission,
   });
@@ -167,10 +174,32 @@ export function App() {
     savedSessions,
     setSavedSessions,
     liveDeviceState,
+    replyBusy,
     streamingAssistantText,
     clearStreamingAssistantText,
     refreshCurrentSession,
   } = runtimeSession;
+
+  const busy = pendingSend || replyBusy;
+
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    bridgeSessionResolverRef.current = async (_origin) => {
+      const currentSessionId = activeSessionIdRef.current;
+      if (currentSessionId) {
+        return currentSessionId;
+      }
+
+      const nextSessionId = createSessionId();
+      activeSessionIdRef.current = nextSessionId;
+      setActiveSessionId(nextSessionId);
+      await refreshCurrentSession(nextSessionId);
+      return nextSessionId;
+    };
+  }, [refreshCurrentSession, setActiveSessionId]);
 
   const {
     voiceMode,
@@ -236,11 +265,22 @@ export function App() {
       setBridgeStatus(status);
     });
 
-    void bridgeManager.start().catch((error) => {
-      if (!cancelled) {
-        setErrorMessage(formatUiErrorMessage(error));
+    void (async () => {
+      try {
+        await bridgeManager.start();
+        if (cancelled) return;
+        const status = bridgeManager.getStatus();
+        if (status.adapters.length === 0) {
+          setStatusMessage('桥接已启用，但当前没有可用的桥接通道');
+          return;
+        }
+        setStatusMessage('桥接已启动');
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(formatUiErrorMessage(error));
+        }
       }
-    });
+    })();
 
     return () => {
       cancelled = true;
@@ -250,14 +290,14 @@ export function App() {
     };
   }, [bridgeManager, safetyNoticeAccepted, settings.bridge.enabled]);
 
-  const denyPendingPermissionRequest = useCallback((reason = '当前回复已停止。'): void => {
+  const denyPendingPermissionRequest = useCallback((reason = '当前回复已停止'): void => {
     if (!pendingPermission) return;
     pendingPermission.resolve({ type: 'deny', reason });
     setPendingPermission(null);
   }, [pendingPermission]);
 
   async function performLifecycleStop(reason: 'leave-page' | 'background-hidden'): Promise<void> {
-    denyPendingPermissionRequest('当前回复已在页面离开前台时终止。');
+    denyPendingPermissionRequest('当前回复已在页面离开前台时终止');
     stopAllVoiceActivity({ disableMode: true });
 
     if (activeSessionId) {
@@ -266,7 +306,7 @@ export function App() {
     }
 
     if (reason === 'background-hidden') {
-      setStatusMessage('应用切到后台后，已自动停止当前输出。');
+      setStatusMessage('应用切到后台后，已自动停止当前输出');
     }
   }
 
@@ -276,13 +316,13 @@ export function App() {
     try {
       setErrorMessage(null);
       await client.connectDevice(activeSessionId);
-      setStatusMessage('设备已连接。');
+      setStatusMessage('设备已连接');
       await refreshCurrentSession(activeSessionId);
       return true;
     } catch (error) {
       if (isBluetoothChooserCancelledError(error)) {
         setErrorMessage(null);
-        setStatusMessage(liveDeviceState.connected ? '已取消重连，当前设备连接保持不变。' : '已取消设备选择，当前仍未连接设备。');
+        setStatusMessage(liveDeviceState.connected ? '已取消重连，当前设备连接保持不变' : '已取消设备选择，当前仍未连接设备');
         return false;
       }
       setErrorMessage(formatUiErrorMessage(error));
@@ -294,7 +334,7 @@ export function App() {
     try {
       setErrorMessage(null);
       await client.disconnectDevice();
-      setStatusMessage('设备已断开。');
+      setStatusMessage('设备已断开');
       if (activeSessionId) {
         await refreshCurrentSession(activeSessionId);
       }
@@ -306,7 +346,7 @@ export function App() {
   const sendTextMessage = useCallback(async (message: string): Promise<'sent' | 'aborted' | 'failed'> => {
     if (!message.trim() || !activeSessionId) return 'failed';
 
-    setBusy(true);
+    setPendingSend(true);
     try {
       setErrorMessage(null);
       stopSpeechPlayback();
@@ -321,18 +361,18 @@ export function App() {
         },
       });
 
-      setStatusMessage('消息已发送。');
+      setStatusMessage('消息已发送');
       await refreshCurrentSession(activeSessionId);
       return 'sent';
     } catch (error) {
       if (isReplyAbortError(error)) {
-        setStatusMessage('已停止当前回复。');
+        setStatusMessage('已停止当前回复');
         return 'aborted';
       }
       setErrorMessage(formatUiErrorMessage(error));
       return 'failed';
     } finally {
-      setBusy(false);
+      setPendingSend(false);
     }
   }, [activeSessionId, client, refreshCurrentSession, stopSpeechPlayback]);
 
@@ -352,11 +392,11 @@ export function App() {
 
     try {
       setErrorMessage(null);
-      denyPendingPermissionRequest('当前回复已通过紧急停止终止。');
+      denyPendingPermissionRequest('当前回复已通过紧急停止终止');
       stopAllVoiceActivity({ disableMode: true });
       await client.abortCurrentReply(activeSessionId);
       await client.emergencyStop(activeSessionId);
-      setStatusMessage('已发送紧急停止。');
+      setStatusMessage('已发送紧急停止');
       await refreshCurrentSession(activeSessionId);
     } catch (error) {
       setErrorMessage(formatUiErrorMessage(error));
@@ -372,10 +412,10 @@ export function App() {
       stopSpeechPlayback();
       await client.abortCurrentReply(activeSessionId);
       clearStreamingAssistantText();
-      setStatusMessage('已停止当前回复。');
+      setStatusMessage('已停止当前回复');
     } catch (error) {
       if (isReplyAbortError(error)) {
-        setStatusMessage('已停止当前回复。');
+        setStatusMessage('已停止当前回复');
         return;
       }
       setErrorMessage(formatUiErrorMessage(error));
@@ -390,7 +430,7 @@ export function App() {
 
     if (activeSessionId) {
       try {
-        denyPendingPermissionRequest('已因新建会话终止当前回复。');
+        denyPendingPermissionRequest('已因新建会话终止当前回复');
         stopAllVoiceActivity({ disableMode: true });
         await client.abortCurrentReply(activeSessionId);
         await client.emergencyStop(activeSessionId);
@@ -405,7 +445,7 @@ export function App() {
     clearStreamingAssistantText();
     clearEvents();
     setErrorMessage(null);
-    setStatusMessage('已创建新会话。');
+    setStatusMessage('已创建新会话');
     setSidebarOpen(false);
 
     const nextSession = await client.getSessionSnapshot(nextSessionId);
@@ -429,7 +469,7 @@ export function App() {
         setSession(await client.getSessionSnapshot(nextSessionId));
       }
 
-      setStatusMessage('会话已删除。');
+      setStatusMessage('会话已删除');
     } catch (error) {
       setErrorMessage(formatUiErrorMessage(error));
     }
@@ -443,7 +483,7 @@ export function App() {
     clearStreamingAssistantText();
     stopAllVoiceActivity({ disableMode: false });
     setErrorMessage(null);
-    setStatusMessage('已切换到所选会话。');
+    setStatusMessage('已切换到所选会话');
     setSidebarOpen(false);
   }
 
@@ -451,14 +491,14 @@ export function App() {
     const next = settingsStore.reset();
     setSettingsDraft(next);
     setSettings(next);
-    setStatusMessage('设置已恢复默认值。');
+    setStatusMessage('设置已恢复默认值');
     clearEvents();
   }
 
   function saveCurrentPromptPreset(): void {
     const prompt = settingsDraft.customPrompt.trim();
     if (!prompt) {
-      setErrorMessage('请先输入自定义提示词，再保存预设。');
+      setErrorMessage('请先输入自定义提示词，再保存预设');
       return;
     }
 
@@ -471,13 +511,13 @@ export function App() {
     if (!prompt) {
       setSavePromptDialogOpen(false);
       setPromptPresetName('');
-      setErrorMessage('请先输入自定义提示词，再保存预设。');
+      setErrorMessage('请先输入自定义提示词，再保存预设');
       return;
     }
 
     const name = promptPresetName.trim();
     if (!name) {
-      setErrorMessage('请输入这组提示词的名称。');
+      setErrorMessage('请输入这组提示词的名称');
       return;
     }
 
@@ -494,7 +534,7 @@ export function App() {
     }));
     setSavePromptDialogOpen(false);
     setPromptPresetName('');
-    setStatusMessage('已保存自定义提示词。');
+    setStatusMessage('已保存自定义提示词');
   }
 
   function deleteSavedPromptPreset(presetId: string): void {
@@ -506,7 +546,7 @@ export function App() {
         savedPromptPresets: nextSavedPresets,
       };
     });
-    setStatusMessage('已删除该自定义提示词。');
+    setStatusMessage('已删除该自定义提示词');
   }
 
   function openInspector(tab: InspectorTab): void {
@@ -537,7 +577,7 @@ export function App() {
         case 'assistant-message-aborted':
           return {
             key: `event:aborted:${event.sessionId}:${event.message.id}`,
-            text: '已停止当前回复。',
+            text: '已停止当前回复',
             variant: 'info' as const,
           };
       }
@@ -679,7 +719,7 @@ export function App() {
           {updateStatus.hasUpdate && (
             <div className="pointer-events-auto flex justify-center">
               <Alert variant="info" className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]">
-                <AlertDescription className="whitespace-normal break-words text-center">检测到新版本。刷新页面可能会中断蓝牙连接与语音会话。</AlertDescription>
+                <AlertDescription className="whitespace-normal break-words text-center">检测到新版本，刷新页面可能会中断蓝牙连接与语音会话</AlertDescription>
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <Button variant="secondary" size="sm" onClick={() => updateChecker.dismiss()}>
                     稍后提醒
@@ -737,7 +777,7 @@ export function App() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>保存提示词</DialogTitle>
-              <DialogDescription>给当前这组自定义提示词起一个名称，之后可以在设置里快速复用。</DialogDescription>
+              <DialogDescription>给当前这组自定义提示词起一个名称，之后可以在设置里快速复用</DialogDescription>
             </DialogHeader>
 
             <form
@@ -785,7 +825,7 @@ export function App() {
               <div className="panel-header">
                 <div className="min-w-0 flex-1">
                   <DialogTitle className="text-[1.1rem] tracking-[-0.03em]">编辑波形</DialogTitle>
-                  <DialogDescription className="mt-1">修改自定义波形的名称和说明。</DialogDescription>
+                  <DialogDescription className="mt-1">修改自定义波形的名称和说明</DialogDescription>
                 </div>
               </div>
               <label className="settings">
@@ -837,7 +877,7 @@ export function App() {
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <SheetTitle>控制台</SheetTitle>
-                  <SheetDescription className="mt-1.5">设置、波形、桥接和调试信息都收在这里。</SheetDescription>
+                  <SheetDescription className="mt-1.5">设置、波形、桥接和调试信息都收在这里</SheetDescription>
                 </div>
                 <SheetClose className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
                   <X className="h-5 w-5" />
@@ -873,7 +913,7 @@ export function App() {
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <SheetTitle>历史记录</SheetTitle>
-                  <SheetDescription className="mt-1.5">选择历史对话，或者新建一条会话。</SheetDescription>
+                  <SheetDescription className="mt-1.5">选择历史对话，或者新建一条会话</SheetDescription>
                 </div>
                 <SheetClose className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
                   <X className="h-5 w-5" />

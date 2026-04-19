@@ -62,6 +62,30 @@ class FakeAdapter implements PlatformAdapter {
   }
 }
 
+class SlowStartAdapter extends FakeAdapter {
+  startCalls = 0;
+  stopCalls = 0;
+  private resolveStart: (() => void) | null = null;
+  private startGate = new Promise<void>((resolve) => {
+    this.resolveStart = resolve;
+  });
+
+  override async start(): Promise<void> {
+    this.startCalls += 1;
+    await this.startGate;
+    this.connected = true;
+  }
+
+  override async stop(): Promise<void> {
+    this.stopCalls += 1;
+    this.connected = false;
+  }
+
+  finishStart(): void {
+    this.resolveStart?.();
+  }
+}
+
 class FakeAgentClient implements AgentClient {
   readonly transport = 'embedded' as const;
   readonly supportsLiveEvents = true;
@@ -71,13 +95,14 @@ class FakeAgentClient implements AgentClient {
     context: { sessionId: string; sourceType: string; sourceUserId?: string; traceId: string };
   }> = [];
   private listener: ((event: RuntimeEvent) => void) | null = null;
+  private readonly sessions = new Map<string, SessionSnapshot>();
 
   async listSessions(): Promise<SessionSnapshot[]> {
     return [];
   }
 
   async getSessionSnapshot(sessionId: string): Promise<SessionSnapshot> {
-    return {
+    return this.sessions.get(sessionId) ?? {
       id: sessionId,
       createdAt: 0,
       updatedAt: 0,
@@ -118,6 +143,17 @@ class FakeAgentClient implements AgentClient {
   emit(event: RuntimeEvent): void {
     this.listener?.(event);
   }
+
+  setSessionMetadata(sessionId: string, metadata: Record<string, unknown>): void {
+    this.sessions.set(sessionId, {
+      id: sessionId,
+      createdAt: 0,
+      updatedAt: 0,
+      messages: [],
+      deviceState: createEmptyDeviceState(),
+      metadata,
+    });
+  }
 }
 
 async function flushAsyncWork(): Promise<void> {
@@ -145,7 +181,7 @@ async function testFallbackPermission(): Promise<void> {
   const port = new BridgePermissionPort({
     settings: {
       enabled: true,
-      qq: { enabled: false, wsUrl: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
+      qq: { enabled: false, wsUrl: '', accessToken: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
       telegram: { enabled: true, botToken: 'bot', proxyUrl: '', allowUsers: ['user-1'], permissionMode: 'confirm' },
     },
     fallback,
@@ -177,7 +213,7 @@ async function testScopedRemotePermissionCaching(): Promise<void> {
   const port = new BridgePermissionPort({
     settings: {
       enabled: true,
-      qq: { enabled: false, wsUrl: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
+      qq: { enabled: false, wsUrl: '', accessToken: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
       telegram: { enabled: true, botToken: 'bot', proxyUrl: '', allowUsers: ['user-1'], permissionMode: 'confirm' },
     },
     fallback: new FakePermissionPort(),
@@ -239,8 +275,111 @@ async function testBridgeManagerRoundTrip(): Promise<void> {
   assert.equal(registry.get('telegram'), undefined);
 }
 
+async function testBridgeManagerRestartDoesNotDuplicateIncomingMessages(): Promise<void> {
+  const adapter = new FakeAdapter();
+  const registry = new BridgeAdapterRegistry();
+  const client = new FakeAgentClient();
+  const manager = new BridgeManager({
+    client,
+    registry,
+    adapters: [adapter],
+  });
+
+  await manager.start();
+  await manager.stop();
+  await manager.start();
+
+  adapter.emitIncoming('hello once');
+  await flushAsyncWork();
+
+  assert.equal(client.sentMessages.length, 1);
+  assert.equal(client.sentMessages[0]?.text, 'hello once');
+}
+
+async function testBridgeManagerUsesResolvedActiveSession(): Promise<void> {
+  const adapter = new FakeAdapter();
+  const registry = new BridgeAdapterRegistry();
+  const client = new FakeAgentClient();
+  const manager = new BridgeManager({
+    client,
+    registry,
+    adapters: [adapter],
+    resolveTargetSessionId: async () => 'active-session',
+  });
+
+  await manager.start();
+  adapter.emitIncoming('hello current session');
+  await flushAsyncWork();
+
+  assert.equal(client.sentMessages.length, 1);
+  assert.equal(client.sentMessages[0]?.sessionId, 'active-session');
+  assert.equal(client.sentMessages[0]?.text, 'hello current session');
+}
+
+async function testBridgeManagerCoalescesStartStopStartWhileStarting(): Promise<void> {
+  const adapter = new SlowStartAdapter();
+  const registry = new BridgeAdapterRegistry();
+  const client = new FakeAgentClient();
+  const manager = new BridgeManager({
+    client,
+    registry,
+    adapters: [adapter],
+  });
+
+  const firstStart = manager.start();
+  const stop = manager.stop();
+  const secondStart = manager.start();
+
+  assert.equal(adapter.startCalls, 1);
+  assert.equal(adapter.stopCalls, 0);
+
+  adapter.finishStart();
+  await Promise.all([firstStart, stop, secondStart]);
+
+  assert.equal(adapter.startCalls, 1);
+  assert.equal(adapter.stopCalls, 0);
+  assert.equal(adapter.connected, true);
+  assert.equal(manager.getStatus().started, true);
+}
+
+async function testBridgeManagerRecoversPersistedReplyTarget(): Promise<void> {
+  const adapter = new FakeAdapter();
+  const registry = new BridgeAdapterRegistry();
+  const client = new FakeAgentClient();
+  client.setSessionMetadata('active-session', {
+    bridgeOrigin: {
+      platform: 'telegram',
+      userId: 'user-1',
+      userName: 'Alice',
+    },
+  });
+
+  const manager = new BridgeManager({
+    client,
+    registry,
+    adapters: [adapter],
+  });
+
+  await manager.start();
+  client.emit({
+    type: 'assistant-message-completed',
+    sessionId: 'active-session',
+    message: createMessage('assistant', 'reply after rebuild'),
+  });
+  await flushAsyncWork();
+
+  assert.deepEqual(adapter.sentMessages.at(-1), {
+    userId: 'user-1',
+    text: 'reply after rebuild',
+  });
+}
+
 await testMessageQueue();
 await testFallbackPermission();
 await testScopedRemotePermissionCaching();
 await testBridgeManagerRoundTrip();
+await testBridgeManagerRestartDoesNotDuplicateIncomingMessages();
+await testBridgeManagerUsesResolvedActiveSession();
+await testBridgeManagerCoalescesStartStopStartWhileStarting();
+await testBridgeManagerRecoversPersistedReplyTarget();
 console.log('bridge-core self-test passed');

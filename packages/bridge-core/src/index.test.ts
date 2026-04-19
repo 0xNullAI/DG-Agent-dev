@@ -56,6 +56,30 @@ class FakeAdapter implements PlatformAdapter {
   }
 }
 
+class SlowStartAdapter extends FakeAdapter {
+  startCalls = 0;
+  stopCalls = 0;
+  private resolveStart: (() => void) | null = null;
+  private startGate = new Promise<void>((resolve) => {
+    this.resolveStart = resolve;
+  });
+
+  override async start(): Promise<void> {
+    this.startCalls += 1;
+    await this.startGate;
+    this.connected = true;
+  }
+
+  override async stop(): Promise<void> {
+    this.stopCalls += 1;
+    this.connected = false;
+  }
+
+  finishStart(): void {
+    this.resolveStart?.();
+  }
+}
+
 class FakeAgentClient implements AgentClient {
   readonly transport = 'embedded' as const;
   readonly supportsLiveEvents = true;
@@ -65,13 +89,14 @@ class FakeAgentClient implements AgentClient {
     context: { sessionId: string; sourceType: string; sourceUserId?: string; traceId: string };
   }> = [];
   private listener: ((event: RuntimeEvent) => void) | null = null;
+  private readonly sessions = new Map<string, SessionSnapshot>();
 
   async listSessions(): Promise<SessionSnapshot[]> {
     return [];
   }
 
   async getSessionSnapshot(sessionId: string): Promise<SessionSnapshot> {
-    return {
+    return this.sessions.get(sessionId) ?? {
       id: sessionId,
       createdAt: 0,
       updatedAt: 0,
@@ -117,6 +142,17 @@ class FakeAgentClient implements AgentClient {
   }): void {
     this.listener?.(event as RuntimeEvent);
   }
+
+  setSessionMetadata(sessionId: string, metadata: Record<string, unknown>): void {
+    this.sessions.set(sessionId, {
+      id: sessionId,
+      createdAt: 0,
+      updatedAt: 0,
+      messages: [],
+      deviceState: createEmptyDeviceState(),
+      metadata,
+    });
+  }
 }
 
 async function flushAsyncWork(): Promise<void> {
@@ -145,7 +181,7 @@ describe('bridge-core', () => {
     const port = new BridgePermissionPort({
       settings: {
         enabled: true,
-        qq: { enabled: false, wsUrl: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
+        qq: { enabled: false, wsUrl: '', accessToken: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
         telegram: { enabled: true, botToken: 'bot', proxyUrl: '', allowUsers: ['user-1'], permissionMode: 'confirm' },
       },
       fallback,
@@ -177,7 +213,7 @@ describe('bridge-core', () => {
     const port = new BridgePermissionPort({
       settings: {
         enabled: true,
-        qq: { enabled: false, wsUrl: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
+        qq: { enabled: false, wsUrl: '', accessToken: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
         telegram: { enabled: true, botToken: 'bot', proxyUrl: '', allowUsers: ['user-1'], permissionMode: 'confirm' },
       },
       fallback: new FakePermissionPort(),
@@ -237,5 +273,104 @@ describe('bridge-core', () => {
 
     await manager.stop();
     expect(registry.get('telegram')).toBeUndefined();
+  });
+
+  it('does not duplicate incoming message handling after restarting the same bridge manager', async () => {
+    const adapter = new FakeAdapter();
+    const registry = new BridgeAdapterRegistry();
+    const client = new FakeAgentClient();
+    const manager = new BridgeManager({
+      client,
+      registry,
+      adapters: [adapter],
+    });
+
+    await manager.start();
+    await manager.stop();
+    await manager.start();
+
+    adapter.emitIncoming('hello once');
+    await flushAsyncWork();
+
+    expect(client.sentMessages).toHaveLength(1);
+    expect(client.sentMessages[0]?.text).toBe('hello once');
+  });
+
+  it('routes incoming bridge messages to the resolved active session when provided', async () => {
+    const adapter = new FakeAdapter();
+    const registry = new BridgeAdapterRegistry();
+    const client = new FakeAgentClient();
+    const manager = new BridgeManager({
+      client,
+      registry,
+      adapters: [adapter],
+      resolveTargetSessionId: async () => 'active-session',
+    });
+
+    await manager.start();
+    adapter.emitIncoming('hello current session');
+    await flushAsyncWork();
+
+    expect(client.sentMessages).toHaveLength(1);
+    expect(client.sentMessages[0]?.sessionId).toBe('active-session');
+    expect(client.sentMessages[0]?.text).toBe('hello current session');
+  });
+
+  it('coalesces start-stop-start churn while startup is still in flight', async () => {
+    const adapter = new SlowStartAdapter();
+    const registry = new BridgeAdapterRegistry();
+    const client = new FakeAgentClient();
+    const manager = new BridgeManager({
+      client,
+      registry,
+      adapters: [adapter],
+    });
+
+    const firstStart = manager.start();
+    const stop = manager.stop();
+    const secondStart = manager.start();
+
+    expect(adapter.startCalls).toBe(1);
+    expect(adapter.stopCalls).toBe(0);
+
+    adapter.finishStart();
+    await Promise.all([firstStart, stop, secondStart]);
+
+    expect(adapter.startCalls).toBe(1);
+    expect(adapter.stopCalls).toBe(0);
+    expect(adapter.connected).toBe(true);
+    expect(manager.getStatus().started).toBe(true);
+  });
+
+  it('recovers the bridge reply target from persisted session metadata after a manager rebuild', async () => {
+    const adapter = new FakeAdapter();
+    const registry = new BridgeAdapterRegistry();
+    const client = new FakeAgentClient();
+    client.setSessionMetadata('active-session', {
+      bridgeOrigin: {
+        platform: 'telegram',
+        userId: 'user-1',
+        userName: 'Alice',
+      },
+    });
+
+    const manager = new BridgeManager({
+      client,
+      registry,
+      adapters: [adapter],
+    });
+
+    await manager.start();
+    client.emit({
+      type: 'assistant-message-completed',
+      sessionId: 'active-session',
+      message: createMessage('assistant', 'reply after rebuild'),
+    });
+    await flushAsyncWork();
+
+    expect(adapter.sentMessages.at(-1)).toEqual({
+      userId: 'user-1',
+      text: 'reply after rebuild',
+    });
   });
 });

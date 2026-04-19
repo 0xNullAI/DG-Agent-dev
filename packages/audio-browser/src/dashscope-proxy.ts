@@ -151,7 +151,7 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
 
   async transcribeOnce(request: SpeechRecognitionRequest = {}): Promise<string> {
     if (!isDashscopeProxyRecognitionSupported()) {
-      throw new Error('DashScope proxy speech recognition is not supported in this browser.');
+      throw new Error('当前浏览器不支持 DashScope 代理语音识别');
     }
 
     this.abort(true);
@@ -196,14 +196,14 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
 
     const AudioContextCtor = getAudioContextCtor();
     if (!AudioContextCtor) {
-      throw new Error('AudioContext is unavailable in this browser.');
+      throw new Error('当前浏览器无法使用 AudioContext');
     }
 
     this.audioContext = new AudioContextCtor({ sampleRate: SAMPLE_RATE });
     const source = this.audioContext.createMediaStreamSource(this.mediaStream);
 
     if (!this.audioContext.audioWorklet) {
-      throw new Error('AudioWorklet is unavailable in this browser.');
+      throw new Error('当前浏览器无法使用 AudioWorklet');
     }
 
     if (!pcmWorkletModuleUrl) {
@@ -271,7 +271,7 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
     };
 
     activeWs.onerror = () => {
-      this.rejectPending(new Error('Voice recognition WebSocket connection failed.'));
+      this.rejectPending(new Error('语音识别 WebSocket 连接失败'));
       this.cleanup();
     };
 
@@ -288,7 +288,7 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
         const reject = this.pendingReject;
         this.clearPending();
         this.cleanup();
-        reject(new Error('Voice recognition connection closed.'));
+        reject(new Error('语音识别连接已关闭'));
         return;
       }
 
@@ -395,7 +395,7 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
     }
 
     if (header.event === 'task-failed') {
-      const errorMessage = payload.message ?? header.error_message ?? 'Voice recognition failed.';
+      const errorMessage = payload.message ?? header.error_message ?? '语音识别失败';
       this.rejectPending(new Error(errorMessage));
       this.cleanup();
     }
@@ -601,12 +601,12 @@ class DashscopeProxySpeechSynthesisSession implements SpeechSynthesisSession {
   private async openStream(): Promise<void> {
     if (this.aborted || this.ws) return;
     if (!isDashscopeProxySynthesisSupported()) {
-      throw new Error('DashScope proxy speech synthesis is not supported in this browser.');
+      throw new Error('当前浏览器不支持 DashScope 代理语音播报');
     }
 
     const AudioContextCtor = getAudioContextCtor();
     if (!AudioContextCtor) {
-      throw new Error('AudioContext is unavailable in this browser.');
+      throw new Error('当前浏览器无法使用 AudioContext');
     }
 
     this.audioContext = new AudioContextCtor({ sampleRate: TTS_SAMPLE_RATE });
@@ -676,7 +676,7 @@ class DashscopeProxySpeechSynthesisSession implements SpeechSynthesisSession {
         }
 
         if (eventName === 'task-failed') {
-          const errorMessage = message.payload?.message ?? message.header?.error_message ?? 'Speech synthesis failed.';
+          const errorMessage = message.payload?.message ?? message.header?.error_message ?? '语音播报失败';
           this.rejectAndCleanup(new Error(errorMessage));
         }
       } catch {
@@ -685,7 +685,7 @@ class DashscopeProxySpeechSynthesisSession implements SpeechSynthesisSession {
     };
 
     activeWs.onerror = () => {
-      this.rejectAndCleanup(new Error('Speech synthesis WebSocket connection failed.'));
+      this.rejectAndCleanup(new Error('语音播报 WebSocket 连接失败'));
     };
 
     activeWs.onclose = () => {

@@ -47,6 +47,18 @@ export class BrowserAppSettingsStore {
       ...persisted,
       permissionMode: effectivePermissionState.permissionMode,
       permissionModeExpiresAt: effectivePermissionState.permissionModeExpiresAt,
+      bridge: {
+        ...this.defaults.bridge,
+        ...(persisted?.bridge ?? {}),
+        qq: {
+          ...this.defaults.bridge.qq,
+          ...(persisted?.bridge?.qq ?? {}),
+        },
+        telegram: {
+          ...this.defaults.bridge.telegram,
+          ...(persisted?.bridge?.telegram ?? {}),
+        },
+      },
       provider: activeProvider,
       providerConfigs,
       voice: normalizeVoiceSettings({

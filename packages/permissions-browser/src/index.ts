@@ -57,7 +57,7 @@ export class BrowserPermissionPort implements PermissionPort {
     const result = this.requestFn ? await this.requestFn(input) : this.confirmFn(formatPermissionMessage(input));
     const decision = normalizeDecision(result);
     if (decision.type === 'deny') {
-      return { type: 'deny', reason: 'User denied the tool call in browser confirmation.' };
+      return { type: 'deny', reason: '用户在浏览器确认框中拒绝了这次工具调用' };
     }
 
     if (this.options.mode === 'timed') {

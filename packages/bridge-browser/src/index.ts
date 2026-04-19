@@ -1,10 +1,10 @@
-import type { BridgePlatformMessage, PlatformAdapter } from '@dg-agent/bridge-core';
-import type { BridgeSettings } from '@dg-agent/bridge-core';
+import type { BridgePlatformMessage, BridgeSettings, PlatformAdapter } from '@dg-agent/bridge-core';
 
 const GROUP_PREFIX = 'group:';
 
 export interface QQAdapterConfig {
   wsUrl: string;
+  accessToken: string;
   allowUsers: string[];
   allowGroups: string[];
 }
@@ -23,6 +23,8 @@ interface OneBotResponse {
   status: string;
   retcode: number;
   echo?: string;
+  msg?: string;
+  wording?: string;
 }
 
 export class QQAdapter implements PlatformAdapter {
@@ -30,6 +32,14 @@ export class QQAdapter implements PlatformAdapter {
   private ws: WebSocket | null = null;
   private handlers: Array<(message: BridgePlatformMessage) => void> = [];
   private waiters = new Map<string, { resolve: (text: string) => void; timer: ReturnType<typeof setTimeout> }>();
+  private pendingResponses = new Map<
+    string,
+    {
+      resolve: () => void;
+      reject: (error: Error) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
   private selfId: string | null = null;
 
   constructor(private readonly config: QQAdapterConfig) {}
@@ -40,31 +50,78 @@ export class QQAdapter implements PlatformAdapter {
 
   async start(): Promise<void> {
     if (this.connected) return;
-
     await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(this.config.wsUrl);
-      ws.addEventListener('open', () => {
+      let settled = false;
+      let openTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const ws = new WebSocket(resolveQqWebSocketUrl(this.config.wsUrl, this.config.accessToken));
+
+      const handleOpen = () => {
+        if (settled) return;
+        settled = true;
+        cleanupStartup();
         this.ws = ws;
         resolve();
-      });
-      ws.addEventListener('message', (event) => {
+      };
+
+      const handleMessage = (event: MessageEvent) => {
         this.handleRaw(event.data as string);
-      });
-      ws.addEventListener('error', () => reject(new Error('QQ WebSocket connection failed.')));
-      ws.addEventListener('close', () => {
+      };
+
+      const handleError = () => {
+        if (settled) return;
+        settled = true;
+        cleanupAll();
+        reject(new Error('QQ WebSocket 连接失败'));
+      };
+
+      const handleClose = () => {
         this.ws = null;
-      });
+        this.rejectPendingResponses('QQ 桥接连接已断开');
+        if (settled) return;
+        settled = true;
+        cleanupAll();
+        reject(new Error('QQ WebSocket 已关闭，请检查 NapCat 地址、Token 或服务状态'));
+      };
+
+      const cleanupStartup = () => {
+        if (openTimer) {
+          clearTimeout(openTimer);
+          openTimer = null;
+        }
+        ws.removeEventListener('open', handleOpen);
+        ws.removeEventListener('error', handleError);
+      };
+
+      const cleanupAll = () => {
+        cleanupStartup();
+        ws.removeEventListener('message', handleMessage);
+        ws.removeEventListener('close', handleClose);
+      };
+
+      openTimer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanupAll();
+        reject(new Error('QQ WebSocket 连接超时，请检查 NapCat 服务地址或 Token'));
+      }, 8000);
+
+      ws.addEventListener('open', handleOpen);
+      ws.addEventListener('message', handleMessage);
+      ws.addEventListener('error', handleError);
+      ws.addEventListener('close', handleClose);
     });
   }
 
   async stop(): Promise<void> {
+    this.rejectPendingResponses('QQ 桥接已停止');
     this.ws?.close();
     this.ws = null;
   }
 
   async sendMessage(userId: string, text: string): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error('QQ adapter is not connected.');
+      throw new Error('QQ 桥接未连接');
     }
 
     const echo = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -81,7 +138,34 @@ export class QQAdapter implements PlatformAdapter {
           echo,
         };
 
-    this.ws.send(JSON.stringify(payload));
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingResponses.delete(echo);
+        reject(new Error('QQ 消息发送超时，未收到 NapCat 回执'));
+      }, 8000);
+
+      this.pendingResponses.set(echo, {
+        resolve: () => {
+          clearTimeout(timer);
+          this.pendingResponses.delete(echo);
+          resolve();
+        },
+        reject: (error: Error) => {
+          clearTimeout(timer);
+          this.pendingResponses.delete(echo);
+          reject(error);
+        },
+        timer,
+      });
+
+      try {
+        this.ws?.send(JSON.stringify(payload));
+      } catch (error) {
+        clearTimeout(timer);
+        this.pendingResponses.delete(echo);
+        reject(error instanceof Error ? error : new Error(String(error ?? 'QQ 消息发送失败')));
+      }
+    });
   }
 
   onMessage(handler: (message: BridgePlatformMessage) => void): void {
@@ -119,42 +203,45 @@ export class QQAdapter implements PlatformAdapter {
       return;
     }
 
-    if ('post_type' in data) {
-      if (!this.selfId && data.self_id) {
-        this.selfId = String(data.self_id);
-      }
-      if (data.post_type !== 'message') return;
+    if (!('post_type' in data)) {
+      this.handleActionResponse(data);
+      return;
+    }
 
-      const userId = String(data.user_id);
-      const groupId = data.group_id != null ? String(data.group_id) : null;
-      const isPrivate = data.message_type === 'private';
+    if (!this.selfId && data.self_id) {
+      this.selfId = String(data.self_id);
+    }
+    if (data.post_type !== 'message') return;
 
-      if (isPrivate) {
-        if (!this.config.allowUsers.includes(userId)) return;
-      } else {
-        if (!groupId || !this.config.allowGroups.includes(groupId)) return;
-        if (!this.isAtBot(data.raw_message)) return;
-      }
+    const userId = String(data.user_id);
+    const groupId = data.group_id != null ? String(data.group_id) : null;
+    const isPrivate = data.message_type === 'private';
 
-      const text = this.stripAtBot(data.raw_message).trim();
-      if (!text) return;
+    if (isPrivate) {
+      if (!this.config.allowUsers.includes(userId)) return;
+    } else {
+      if (!groupId || !this.config.allowGroups.includes(groupId)) return;
+      if (!this.isAtBot(data.raw_message)) return;
+    }
 
-      const waiter = this.waiters.get(userId);
-      if (waiter) {
-        waiter.resolve(text);
-        return;
-      }
+    const text = this.stripAtBot(data.raw_message).trim();
+    if (!text) return;
 
-      const message: BridgePlatformMessage = {
-        platform: this.platform,
-        userId: isPrivate ? userId : `${GROUP_PREFIX}${groupId}`,
-        userName: data.sender.nickname,
-        text,
-      };
+    const waiter = this.waiters.get(userId);
+    if (waiter) {
+      waiter.resolve(text);
+      return;
+    }
 
-      for (const handler of this.handlers) {
-        handler(message);
-      }
+    const message: BridgePlatformMessage = {
+      platform: this.platform,
+      userId: isPrivate ? userId : `${GROUP_PREFIX}${groupId}`,
+      userName: data.sender.nickname,
+      text,
+    };
+
+    for (const handler of this.handlers) {
+      handler(message);
     }
   }
 
@@ -166,6 +253,28 @@ export class QQAdapter implements PlatformAdapter {
   private stripAtBot(rawMessage: string): string {
     if (!this.selfId) return rawMessage;
     return rawMessage.replace(new RegExp(`\\[CQ:at,qq=${this.selfId}\\]`, 'g'), '').trim();
+  }
+
+  private handleActionResponse(response: OneBotResponse): void {
+    if (!response.echo) return;
+    const pending = this.pendingResponses.get(response.echo);
+    if (!pending) return;
+
+    if (response.status === 'ok' && response.retcode === 0) {
+      pending.resolve();
+      return;
+    }
+
+    pending.reject(
+      new Error(response.wording?.trim() || response.msg?.trim() || `QQ 消息发送失败，retcode=${response.retcode}`),
+    );
+  }
+
+  private rejectPendingResponses(reason: string): void {
+    for (const pending of this.pendingResponses.values()) {
+      pending.reject(new Error(reason));
+    }
+    this.pendingResponses.clear();
   }
 }
 
@@ -327,6 +436,7 @@ export function createBrowserBridgeAdapters(settings: BridgeSettings): PlatformA
     adapters.push(
       new QQAdapter({
         wsUrl: settings.qq.wsUrl,
+        accessToken: settings.qq.accessToken,
         allowUsers: settings.qq.allowUsers,
         allowGroups: settings.qq.allowGroups,
       }),
@@ -344,4 +454,26 @@ export function createBrowserBridgeAdapters(settings: BridgeSettings): PlatformA
   }
 
   return adapters;
+}
+
+function resolveQqWebSocketUrl(wsUrl: string, accessToken: string): string {
+  const trimmedUrl = wsUrl.trim();
+  const trimmedToken = accessToken.trim();
+  if (!trimmedUrl || !trimmedToken) {
+    return trimmedUrl;
+  }
+
+  try {
+    const url = new URL(trimmedUrl);
+    if (!url.searchParams.has('access_token')) {
+      url.searchParams.set('access_token', trimmedToken);
+    }
+    return url.toString();
+  } catch {
+    if (/([?&])access_token=/.test(trimmedUrl)) {
+      return trimmedUrl;
+    }
+    const separator = trimmedUrl.includes('?') ? '&' : '?';
+    return `${trimmedUrl}${separator}access_token=${encodeURIComponent(trimmedToken)}`;
+  }
 }

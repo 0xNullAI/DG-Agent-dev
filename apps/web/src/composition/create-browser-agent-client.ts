@@ -41,8 +41,8 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
         })
       : new UnavailableLlmPort(
           provider.browserSupported
-            ? '当前模型服务还没有配置完成，请先在设置里选择服务提供方并补全凭证。'
-            : `当前服务提供方“${config.provider.providerId}”不支持浏览器直连，请改用可在浏览器运行的服务。`,
+            ? '当前模型服务还没有配置完成，请先在设置里选择服务提供方并补全凭证'
+            : `当前服务提供方“${config.provider.providerId}”不支持浏览器直连，请改用可在浏览器运行的服务`,
         );
 
   return createEmbeddedAgentClient({

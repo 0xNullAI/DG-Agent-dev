@@ -56,7 +56,7 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
     id: 'free',
     name: '免费体验',
-    hint: '无需 API 密钥，每分钟限 10 条。使用阿里云线路。',
+    hint: '无需 API 密钥，每分钟限 10 条（使用阿里云线路）',
     browserSupported: true,
     fields: [],
   },
@@ -72,7 +72,7 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
     id: 'deepseek',
     name: 'DeepSeek',
-    hint: '默认使用 Chat Completions 兼容模式。',
+    hint: '默认使用 Chat Completions 兼容模式',
     browserSupported: true,
     fields: [
       { key: 'apiKey', label: 'API 密钥', type: 'password', placeholder: 'sk-...' },
@@ -82,7 +82,7 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
     id: 'doubao',
     name: '豆包',
-    hint: '默认使用火山引擎 / Ark 接口配置。',
+    hint: '默认使用火山引擎 / Ark 接口配置',
     browserSupported: true,
     fields: [
       { key: 'apiKey', label: 'API 密钥', type: 'password', placeholder: 'ARK API 密钥' },
@@ -102,7 +102,7 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
     id: 'custom',
     name: '自定义',
-    hint: '适用于 OpenAI 兼容后端或私有网关。',
+    hint: '适用于 OpenAI 兼容后端或私有网关',
     browserSupported: true,
     fields: [
       { key: 'apiKey', label: 'API 密钥', type: 'password', placeholder: 'sk-...' },

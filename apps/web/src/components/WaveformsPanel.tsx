@@ -16,7 +16,7 @@ export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove,
       <CardHeader className="px-4 pb-3">
         <div className="min-w-0">
           <CardTitle>波形库</CardTitle>
-          <CardDescription>导入 `.pulse` / `.zip`，并管理你的自定义波形。</CardDescription>
+          <CardDescription>导入 `.pulse` / `.zip`，并管理你的自定义波形</CardDescription>
         </div>
       </CardHeader>
 
@@ -33,7 +33,7 @@ export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove,
         </label>
 
         <div className="flex flex-col gap-3">
-          {waveforms.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有可用波形。</div>}
+          {waveforms.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有可用波形</div>}
           {waveforms.map((waveform) => {
             const isCustom = customWaveforms.some((item) => item.id === waveform.id);
             return (

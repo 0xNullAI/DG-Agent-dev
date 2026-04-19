@@ -197,7 +197,7 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
 
   async execute(command: DeviceCommand): Promise<DeviceCommandResult> {
     if (!this.state.connected) {
-      throw new Error('Device is not connected.');
+      throw new Error('设备未连接');
     }
 
     switch (command.type) {

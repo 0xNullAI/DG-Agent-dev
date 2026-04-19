@@ -30,6 +30,7 @@ export interface ActionContext {
   sessionId: string;
   sourceType: SourceType;
   sourceUserId?: string;
+  sourceUserName?: string;
   sourceChannelId?: string;
   traceId: string;
 }
@@ -62,6 +63,52 @@ export interface SessionSnapshot {
   messages: ConversationMessage[];
   deviceState: DeviceState;
   metadata?: Record<string, unknown>;
+}
+
+export interface BridgeOriginMetadata {
+  platform: 'qq' | 'telegram';
+  userId: string;
+  userName?: string;
+}
+
+export const BRIDGE_ORIGIN_METADATA_KEY = 'bridgeOrigin';
+
+export function getBridgeOriginMetadata(metadata: Record<string, unknown> | undefined): BridgeOriginMetadata | null {
+  const value = metadata?.[BRIDGE_ORIGIN_METADATA_KEY];
+  if (!value || typeof value !== 'object') return null;
+
+  const record = value as Record<string, unknown>;
+  const platform = record.platform;
+  const userId = record.userId;
+  const userName = record.userName;
+
+  if ((platform !== 'qq' && platform !== 'telegram') || typeof userId !== 'string' || userId.trim() === '') {
+    return null;
+  }
+
+  return {
+    platform,
+    userId,
+    userName: typeof userName === 'string' && userName.trim() ? userName : undefined,
+  };
+}
+
+export function mergeBridgeOriginMetadata(
+  metadata: Record<string, unknown> | undefined,
+  context: Pick<ActionContext, 'sourceType' | 'sourceUserId' | 'sourceUserName'>,
+): Record<string, unknown> | undefined {
+  if ((context.sourceType !== 'qq' && context.sourceType !== 'telegram') || !context.sourceUserId?.trim()) {
+    return metadata;
+  }
+
+  return {
+    ...(metadata ?? {}),
+    [BRIDGE_ORIGIN_METADATA_KEY]: {
+      platform: context.sourceType,
+      userId: context.sourceUserId,
+      userName: context.sourceUserName?.trim() || undefined,
+    } satisfies BridgeOriginMetadata,
+  };
 }
 
 export type RuntimeTraceEntryKind =

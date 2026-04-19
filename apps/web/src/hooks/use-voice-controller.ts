@@ -61,12 +61,12 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
       setVoiceState('idle');
 
       if (!normalized) {
-        setStatusMessage('未识别到内容。');
+        setStatusMessage('未识别到内容');
         return;
       }
 
       setText((current) => (current ? `${current}\n${normalized}` : normalized));
-      setStatusMessage('语音内容已填入输入框，请确认后再发送。');
+      setStatusMessage('语音内容已填入输入框，请确认后再发送');
     },
     [setStatusMessage, setText],
   );
@@ -76,7 +76,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
     setVoiceMode(true);
     setVoiceState('listening');
     setVoiceTranscript('');
-    setStatusMessage('语音识别已开始，再次点击结束识别。');
+    setStatusMessage('语音识别已开始，再次点击结束识别');
 
     void speechRecognition
       .transcribeOnce({
@@ -103,7 +103,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
     setVoiceMode(false);
     setVoiceTranscript('');
     setVoiceState('idle');
-    setStatusMessage('语音录制已停止。');
+    setStatusMessage('语音录制已停止');
   }, [setStatusMessage, speechRecognition]);
 
   const stopAllVoiceActivity = useCallback(
@@ -141,7 +141,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
       if (event.type === 'assistant-message-aborted') {
         stopSpeechPlayback();
         setVoiceState('idle');
-        setStatusMessage('助手回复已停止。');
+        setStatusMessage('助手回复已停止');
         return;
       }
 

@@ -5,7 +5,7 @@ import {
   getBrowserSpeechCapabilities,
 } from '@dg-agent/audio-browser';
 import { createBrowserBridgeAdapters } from '@dg-agent/bridge-browser';
-import { BridgeAdapterRegistry, BridgeManager, BridgePermissionPort } from '@dg-agent/bridge-core';
+import { BridgeAdapterRegistry, BridgeManager, BridgePermissionPort, type MessageOrigin } from '@dg-agent/bridge-core';
 import { CoyoteProtocolAdapter, WebBluetoothDevicePort } from '@dg-agent/device-webbluetooth';
 import type { PermissionDecision } from '@dg-agent/core';
 import { BrowserPermissionPort } from '@dg-agent/permissions-browser';
@@ -27,10 +27,11 @@ export interface PendingPermissionRequest {
 export interface UseBrowserAppServicesOptions {
   settings: BrowserAppSettings;
   setPendingPermission: Dispatch<SetStateAction<PendingPermissionRequest | null>>;
+  resolveBridgeSessionId: (origin: MessageOrigin) => string | null | Promise<string | null>;
 }
 
 export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
-  const { settings, setPendingPermission } = options;
+  const { resolveBridgeSessionId, settings, setPendingPermission } = options;
 
   const sessionStore = useMemo(() => new BrowserSessionStore(), []);
   const sessionTraceStore = useMemo(() => new BrowserSessionTraceStore(), []);
@@ -132,8 +133,9 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
         client,
         registry: bridgeRegistry,
         adapters: createBrowserBridgeAdapters(settings.bridge),
+        resolveTargetSessionId: resolveBridgeSessionId,
       }),
-    [bridgeRegistry, client, settings.bridge],
+    [bridgeRegistry, client, resolveBridgeSessionId, settings.bridge],
   );
 
   const resetPermissionGrants = useMemo(

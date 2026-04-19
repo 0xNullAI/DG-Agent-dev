@@ -8,7 +8,7 @@ export function getSessionTitle(session: SessionSnapshot): string {
 
 export function getSessionPreview(session: SessionSnapshot): string {
   const lastMessage = session.messages.at(-1)?.content?.trim();
-  if (!lastMessage) return '还没有消息。';
+  if (!lastMessage) return '还没有消息';
   return lastMessage.slice(0, 60);
 }
 
@@ -23,20 +23,20 @@ export function formatTimestamp(timestamp: number): string {
 
 export function formatUiErrorMessage(error: unknown): string {
   const rawMessage =
-    typeof error === 'string' ? error : error instanceof Error ? error.message : String(error ?? '发生未知错误。');
+    typeof error === 'string' ? error : error instanceof Error ? error.message : String(error ?? '发生未知错误');
 
   const normalizedMessage = rawMessage.trim().replace(/^(DOMException|TypeError|Error|AbortError):\s*/i, '');
 
   if (!normalizedMessage) {
-    return '发生未知错误。';
+    return '发生未知错误';
   }
 
   if (isBluetoothChooserCancelledError(error)) {
-    return '你已取消设备选择。';
+    return '你已取消设备选择';
   }
 
   if (normalizedMessage.includes("Failed to execute 'requestDevice' on 'Bluetooth': Must be handling a user gesture")) {
-    return '请通过页面上的连接按钮手动选择设备。';
+    return '请通过页面上的连接按钮手动选择设备';
   }
 
   return normalizedMessage;
@@ -120,7 +120,7 @@ export function getChatNotices(events: RuntimeEvent[]): Array<{ kind: 'tool' | '
         case 'assistant-message-aborted':
           return {
             kind: 'system' as const,
-            text: '已停止当前回复。',
+            text: '已停止当前回复',
           };
         case 'tool-call-denied':
           return {

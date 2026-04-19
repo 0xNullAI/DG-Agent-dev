@@ -24,7 +24,7 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
       name: 'require-device-connection',
       evaluate({ deviceState }) {
         if (!deviceState.connected) {
-          return { type: 'deny', reason: 'Device is not connected.' };
+          return { type: 'deny', reason: '设备未连接' };
         }
         return null;
       },
@@ -41,7 +41,7 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
         return {
           type: 'clamp',
           command: { ...command, strength: MAX_COLD_START_STRENGTH },
-          reason: `Cold-start strength is capped at ${MAX_COLD_START_STRENGTH}.`,
+          reason: `冷启动强度上限为 ${MAX_COLD_START_STRENGTH}`,
         };
       },
     },
@@ -58,7 +58,7 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
             return {
               type: 'clamp',
               command: { ...command, strength: effectiveLimit },
-              reason: `Channel ${command.channel} is limited to ${effectiveLimit}.`,
+              reason: `${command.channel} 通道强度上限为 ${effectiveLimit}`,
             };
           }
           case 'burst': {
@@ -70,7 +70,7 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
             return {
               type: 'clamp',
               command: { ...command, strength: effectiveLimit },
-              reason: `Burst on channel ${command.channel} is limited to ${effectiveLimit}.`,
+              reason: `${command.channel} 通道 burst 强度上限为 ${effectiveLimit}`,
             };
           }
           case 'adjustStrength': {
@@ -85,7 +85,7 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
             return {
               type: 'clamp',
               command: { ...command, delta: clampedDelta },
-              reason: `Adjusted strength respects the channel ${command.channel} limit of ${effectiveLimit}.`,
+              reason: `调整后的强度需遵守 ${command.channel} 通道上限 ${effectiveLimit}`,
             };
           }
           default:
@@ -105,7 +105,7 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
             ...command,
             delta: Math.sign(command.delta || 1) * MAX_ADJUST_STEP,
           },
-          reason: `Single-step adjustment is capped at ±${MAX_ADJUST_STEP}.`,
+          reason: `单次调节幅度上限为 ±${MAX_ADJUST_STEP}`,
         };
       },
     },
@@ -121,7 +121,7 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
             ...command,
             durationMs: MAX_BURST_DURATION_MS,
           },
-          reason: `Burst duration is capped at ${MAX_BURST_DURATION_MS}ms.`,
+          reason: `Burst 时长上限为 ${MAX_BURST_DURATION_MS}ms`,
         };
       },
     },
@@ -131,7 +131,7 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
         if (!requiresConfirmation(command)) return null;
         return {
           type: 'require-confirm',
-          reason: 'A mutating action requires permission.',
+          reason: '该操作会修改设备状态，需要先获取权限',
         };
       },
     },

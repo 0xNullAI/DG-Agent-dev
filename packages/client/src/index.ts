@@ -145,7 +145,7 @@ export class HttpAgentClient implements AgentClient {
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(new URL(path, this.options.baseUrl), init);
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status} for ${path}`);
+      throw new Error(`请求失败：HTTP ${response.status}，路径 ${path}`);
     }
     return (await response.json()) as T;
   }

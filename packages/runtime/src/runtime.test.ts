@@ -4,6 +4,7 @@ import { AgentRuntime } from './agent-runtime.js';
 import {
   createMessage,
   createEmptyDeviceState,
+  getBridgeOriginMetadata,
   type DeviceCommand,
   type DeviceCommandResult,
   type DeviceState,
@@ -407,7 +408,7 @@ class TestPermission implements PermissionPort {
 
 class DenyingPermission implements PermissionPort {
   async request() {
-    return { type: 'deny', reason: '用户拒绝本次操作。' } as const;
+    return { type: 'deny', reason: '用户拒绝本次操作' } as const;
   }
 }
 
@@ -592,6 +593,34 @@ describe('AgentRuntime', () => {
     }
   });
 
+  it('persists bridge origin metadata for bridge-sourced sessions', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'bridge-active-session',
+      text: 'hello from group',
+      context: {
+        sessionId: 'bridge-active-session',
+        sourceType: 'qq',
+        sourceUserId: 'group:123456',
+        sourceUserName: 'Test Group',
+        traceId: 'trace-bridge-origin',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('bridge-active-session');
+    expect(getBridgeOriginMetadata(session.metadata)).toEqual({
+      platform: 'qq',
+      userId: 'group:123456',
+      userName: 'Test Group',
+    });
+  });
+
   it('clamps cold start strength before executing device command', async () => {
     const runtime = new AgentRuntime({
       device: new TestDevice(),
@@ -642,7 +671,7 @@ describe('AgentRuntime', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     await runtime.abortCurrentReply('test');
 
-    await expect(sendPromise).rejects.toThrow('Assistant reply aborted.');
+    await expect(sendPromise).rejects.toThrow('已停止当前回复');
 
     const session = await runtime.getSessionSnapshot('test');
     expect(session.messages).toHaveLength(2);
@@ -670,7 +699,7 @@ describe('AgentRuntime', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 20));
     await runtime.deleteSession('deleted-while-busy');
-    await expect(sendPromise).rejects.toThrow('Assistant reply aborted.');
+    await expect(sendPromise).rejects.toThrow('已停止当前回复');
 
     const sessions = await runtime.listSessions();
     expect(sessions.some((session) => session.id === 'deleted-while-busy')).toBe(false);
@@ -756,7 +785,7 @@ describe('AgentRuntime', () => {
 
     const session = await runtime.getSessionSnapshot('test');
     expect(llm.count).toBe(1);
-    expect(session.messages.at(-1)?.content).toBe('设备未连接，请先点击“连接设备”。');
+    expect(session.messages.at(-1)?.content).toBe('设备未连接，请先点击“连接设备”');
   });
 
   it('enforces configurable per-turn adjust_strength quotas', async () => {

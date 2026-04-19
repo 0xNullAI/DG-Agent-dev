@@ -38,7 +38,7 @@ export class BridgePermissionPort {
 
     const adapter = this.options.registry.get(platform);
     if (!adapter) {
-      return { type: 'deny', reason: `Bridge adapter for ${platform} is unavailable.` };
+      return { type: 'deny', reason: `${platform} 桥接适配器当前不可用` };
     }
 
     const decision = await requestPermissionRemote(

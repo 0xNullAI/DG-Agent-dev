@@ -55,8 +55,8 @@ export interface SpeechCapabilityOptions {
   synthesisMode?: SpeechServiceMode;
 }
 
-export const SPEECH_ABORTED_ERROR_MESSAGE = 'Voice capture stopped.';
-export const SPEECH_SYNTHESIS_ABORTED_ERROR_MESSAGE = 'Speech playback stopped.';
+export const SPEECH_ABORTED_ERROR_MESSAGE = '语音采集已停止';
+export const SPEECH_SYNTHESIS_ABORTED_ERROR_MESSAGE = '语音播放已停止';
 export const DEFAULT_PROXY_TTS_SPEAKER = 'longxiaochun_v2';
 export const PROXY_TTS_SPEAKERS: Array<{ id: string; label: string }> = [
   { id: DEFAULT_PROXY_TTS_SPEAKER, label: DEFAULT_PROXY_TTS_SPEAKER },

@@ -32,6 +32,7 @@ export interface BridgeSettings {
   qq: {
     enabled: boolean;
     wsUrl: string;
+    accessToken: string;
     allowUsers: string[];
     allowGroups: string[];
     permissionMode: BridgePermissionMode;
@@ -50,6 +51,7 @@ export const DEFAULT_BRIDGE_SETTINGS: BridgeSettings = {
   qq: {
     enabled: false,
     wsUrl: 'ws://localhost:3001',
+    accessToken: '',
     allowUsers: [],
     allowGroups: [],
     permissionMode: 'confirm',
@@ -74,6 +76,7 @@ export interface BridgeManagerOptions {
   client: AgentClient;
   registry: BridgeAdapterRegistry;
   adapters: PlatformAdapter[];
+  resolveTargetSessionId?: (origin: MessageOrigin) => string | null | Promise<string | null>;
 }
 
 export interface BridgeLogEntry {

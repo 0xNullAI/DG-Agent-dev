@@ -1,6 +1,6 @@
 import { SPEECH_ABORTED_ERROR_MESSAGE, SPEECH_SYNTHESIS_ABORTED_ERROR_MESSAGE } from '@dg-agent/audio-browser';
 
-const REPLY_ABORTED_ERROR_MESSAGE = 'Assistant reply aborted.';
+const REPLY_ABORTED_ERROR_MESSAGE = '已停止当前回复';
 
 export function isSpeechAbortError(error: unknown): boolean {
   return error instanceof Error && error.message === SPEECH_ABORTED_ERROR_MESSAGE;

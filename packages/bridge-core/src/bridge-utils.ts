@@ -32,17 +32,17 @@ export async function requestPermissionRemote(
   try {
     await adapter.sendMessage(userId, prompt);
   } catch {
-    return { type: 'deny', reason: '发送远程权限请求失败。' };
+    return { type: 'deny', reason: '发送远程权限请求失败' };
   }
 
   const reply = await adapter.waitForReply(userId, timeoutMs);
   if (reply === null) {
     try {
-      await adapter.sendMessage(userId, '权限请求已超时，系统已自动拒绝这次操作。');
+      await adapter.sendMessage(userId, '权限请求已超时，系统已自动拒绝这次操作');
     } catch {
       // Ignore follow-up send failures.
     }
-    return { type: 'deny', reason: '远程权限请求已超时。' };
+    return { type: 'deny', reason: '远程权限请求已超时' };
   }
 
   const trimmed = reply.trim();
@@ -54,14 +54,14 @@ export async function requestPermissionRemote(
     case '3':
       return { type: 'approve-scoped' };
     case '4':
-      return { type: 'deny', reason: '远程用户拒绝了这次请求。' };
+      return { type: 'deny', reason: '远程用户拒绝了这次请求' };
     default:
       try {
-        await adapter.sendMessage(userId, `无效选项“${trimmed}”。下次请回复 1、2、3 或 4。`);
+        await adapter.sendMessage(userId, `无效选项“${trimmed}”（下次请回复 1、2、3 或 4）`);
       } catch {
         // Ignore follow-up send failures.
       }
-      return { type: 'deny', reason: '远程用户拒绝了这次请求。' };
+      return { type: 'deny', reason: '远程用户拒绝了这次请求' };
   }
 }
 

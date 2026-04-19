@@ -75,7 +75,7 @@ export class RuntimeToolExecutor {
       const currentState = await this.options.device.getState();
       session.deviceState = currentState;
       if (!currentState.connected) {
-        return this.denyToolCall(session, displayToolCall, '设备未连接。', context);
+        return this.denyToolCall(session, displayToolCall, '设备未连接', context);
       }
     }
 

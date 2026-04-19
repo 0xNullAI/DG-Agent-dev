@@ -76,6 +76,37 @@ function testModelContextStrategyPersistence(): void {
   assert.equal(persistedSettings.modelContextStrategy, 'full-history');
 }
 
+function testLegacyBridgeAccessTokenFallback(): void {
+  const localStorageRef = new MemoryStorage();
+  const sessionStorageRef = new MemoryStorage();
+  localStorageRef.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      version: 1,
+      bridge: {
+        enabled: true,
+        qq: {
+          enabled: true,
+          wsUrl: 'ws://127.0.0.1:3001',
+          allowUsers: [],
+          allowGroups: [],
+          permissionMode: 'confirm',
+        },
+        telegram: {
+          enabled: false,
+          botToken: '',
+          proxyUrl: '',
+          allowUsers: [],
+          permissionMode: 'confirm',
+        },
+      },
+    }),
+  );
+
+  const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+  assert.equal(store.load().bridge.qq.accessToken, '');
+}
+
 function testAllowAllOverride(): void {
   const localStorageRef = new MemoryStorage();
   const sessionStorageRef = new MemoryStorage();
@@ -144,6 +175,7 @@ function testRememberedKeys(): void {
 
 testSessionScopedKeys();
 testModelContextStrategyPersistence();
+testLegacyBridgeAccessTokenFallback();
 testAllowAllOverride();
 testLegacyApiKeyFallback();
 testRememberedKeys();
