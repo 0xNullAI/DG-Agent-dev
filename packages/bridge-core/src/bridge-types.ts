@@ -98,7 +98,10 @@ export class BridgeAdapterRegistry {
     this.adapters.set(adapter.platform, adapter);
   }
 
-  unregister(platform: BridgePlatform): void {
+  unregister(platform: BridgePlatform, adapter?: PlatformAdapter): void {
+    const current = this.adapters.get(platform);
+    if (!current) return;
+    if (adapter && current !== adapter) return;
     this.adapters.delete(platform);
   }
 

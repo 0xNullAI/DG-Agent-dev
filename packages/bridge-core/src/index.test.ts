@@ -296,6 +296,18 @@ describe('bridge-core', () => {
     expect(client.sentMessages[0]?.text).toBe('hello once');
   });
 
+  it('does not let an old adapter unregister a newer adapter for the same platform', () => {
+    const registry = new BridgeAdapterRegistry();
+    const oldAdapter = new FakeAdapter();
+    const newAdapter = new FakeAdapter();
+
+    registry.register(oldAdapter);
+    registry.register(newAdapter);
+    registry.unregister('telegram', oldAdapter);
+
+    expect(registry.get('telegram')).toBe(newAdapter);
+  });
+
   it('routes incoming bridge messages to the resolved active session when provided', async () => {
     const adapter = new FakeAdapter();
     const registry = new BridgeAdapterRegistry();

@@ -152,7 +152,7 @@ export class BridgeManager {
 
     for (const adapter of this.options.adapters) {
       await adapter.stop();
-      this.options.registry.unregister(adapter.platform);
+      this.options.registry.unregister(adapter.platform, adapter);
       this.emitLog('info', `${adapter.platform} 桥接已停止`);
     }
     this.emitStatus();
@@ -231,7 +231,7 @@ export class BridgeManager {
       } catch {
         // Ignore rollback failures.
       }
-      this.options.registry.unregister(adapter.platform);
+      this.options.registry.unregister(adapter.platform, adapter);
     }
     this.unsubscribeClient?.();
     this.unsubscribeClient = null;

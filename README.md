@@ -348,6 +348,7 @@
 - 不再默认把桥接消息固定路由到某个旧的 `bridge:*` 历史会话
 - 桥接来源（平台 / 目标用户或群）会持久化到 `session.metadata` 的轻量字段中，用于在桥接管理器重建后恢复回发目标
 - 因此即使在设置里修改桥接配置并保存，旧会话里的后续回复仍应继续回到原来的 QQ / Telegram 对象
+- 桥接适配器注册表按“适配器实例”解绑，避免旧桥接管理器在停止时误删新桥接管理器刚注册的 QQ / Telegram 适配器
 - QQ/NapCat 的 Token 通过 WebSocket URL 查询参数 `access_token` 传递，不通过 Header
 - 设置里的 `accessToken` 字段本质上是帮助补全 `wsUrl`；如果 `wsUrl` 已经自带 `access_token`，则以 `wsUrl` 为准
 - QQ 出站发送会等待 NapCat / OneBot action response 回执，只有拿到成功回执才视为发送成功

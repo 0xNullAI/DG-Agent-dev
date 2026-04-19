@@ -296,6 +296,18 @@ async function testBridgeManagerRestartDoesNotDuplicateIncomingMessages(): Promi
   assert.equal(client.sentMessages[0]?.text, 'hello once');
 }
 
+async function testRegistryIgnoresStaleUnregister(): Promise<void> {
+  const registry = new BridgeAdapterRegistry();
+  const oldAdapter = new FakeAdapter();
+  const newAdapter = new FakeAdapter();
+
+  registry.register(oldAdapter);
+  registry.register(newAdapter);
+  registry.unregister('telegram', oldAdapter);
+
+  assert.equal(registry.get('telegram'), newAdapter);
+}
+
 async function testBridgeManagerUsesResolvedActiveSession(): Promise<void> {
   const adapter = new FakeAdapter();
   const registry = new BridgeAdapterRegistry();
@@ -379,6 +391,7 @@ await testFallbackPermission();
 await testScopedRemotePermissionCaching();
 await testBridgeManagerRoundTrip();
 await testBridgeManagerRestartDoesNotDuplicateIncomingMessages();
+await testRegistryIgnoresStaleUnregister();
 await testBridgeManagerUsesResolvedActiveSession();
 await testBridgeManagerCoalescesStartStopStartWhileStarting();
 await testBridgeManagerRecoversPersistedReplyTarget();
