@@ -104,13 +104,13 @@ export function SessionPanel({
             </Button>
           )}
         </div>
-        <div className="flex items-center justify-between gap-3 px-2 mb-2">
+        <div className="flex items-center justify-between gap-3 px-2 mb-1">
           <div className="pl-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-faint)] font-semibold">
             历史记录
           </div>
         </div>
         <ScrollArea className="h-full min-h-0 max-h-full pr-1">
-          <div>
+          <div className="space-y-0.5">
             {visibleSessions.length === 0 && (
               <div className="px-2 py-4 text-sm text-[var(--text-soft)]">
                 <div className="pl-3">还没有保存的会话</div>
