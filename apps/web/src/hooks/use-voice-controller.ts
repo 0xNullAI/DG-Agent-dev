@@ -37,7 +37,9 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
   const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'speaking'>('idle');
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const speechSessionRef = useRef<SpeechSynthesisSession | null>(null);
+  const recognitionRequestIdRef = useRef(0);
   const voiceModeRef = useRef(voiceMode);
+  const voiceTranscriptRef = useRef(voiceTranscript);
   const ttsEnabledRef = useRef(ttsEnabled);
 
   useEffect(() => {
@@ -45,8 +47,23 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
   }, [voiceMode]);
 
   useEffect(() => {
+    voiceTranscriptRef.current = voiceTranscript;
+  }, [voiceTranscript]);
+
+  useEffect(() => {
     ttsEnabledRef.current = ttsEnabled;
   }, [ttsEnabled]);
+
+  const updateVoiceTranscript = useCallback((transcript: string): void => {
+    voiceTranscriptRef.current = transcript;
+    setVoiceTranscript(transcript);
+  }, []);
+
+  const resetVoiceCaptureState = useCallback((): void => {
+    setVoiceMode(false);
+    setVoiceState('idle');
+    updateVoiceTranscript('');
+  }, [updateVoiceTranscript]);
 
   const ensureSpeechSession = useCallback((): SpeechSynthesisSession => {
     if (!speechSessionRef.current) {
@@ -73,9 +90,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
   const finishVoiceModeWithTranscript = useCallback(
     (transcript: string): void => {
       const normalized = transcript.trim();
-      setVoiceMode(false);
-      setVoiceTranscript('');
-      setVoiceState('idle');
+      resetVoiceCaptureState();
 
       if (!normalized) {
         setStatusMessage('未识别到内容');
@@ -85,56 +100,81 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
       setText((current) => (current ? `${current}\n${normalized}` : normalized));
       setStatusMessage('语音内容已填入输入框，请确认后再发送');
     },
-    [setStatusMessage, setText],
+    [resetVoiceCaptureState, setStatusMessage, setText],
   );
 
   const startVoiceModeCapture = useCallback((): void => {
+    const requestId = ++recognitionRequestIdRef.current;
     setErrorMessage(null);
     setVoiceMode(true);
     setVoiceState('listening');
-    setVoiceTranscript('');
+    updateVoiceTranscript('');
     setStatusMessage('语音识别已开始，再次点击结束识别');
 
     void speechRecognition
       .transcribeOnce({
         manualStop: true,
-        onPartialTranscript: (partial) => setVoiceTranscript(partial),
+        onPartialTranscript: (partial) => {
+          if (recognitionRequestIdRef.current !== requestId) return;
+          updateVoiceTranscript(partial);
+        },
       })
-      .then((transcript) => finishVoiceModeWithTranscript(transcript))
+      .then((transcript) => {
+        if (recognitionRequestIdRef.current !== requestId) return;
+        finishVoiceModeWithTranscript(transcript || voiceTranscriptRef.current);
+      })
       .catch((error) => {
+        if (recognitionRequestIdRef.current !== requestId) return;
         if (isSpeechAbortError(error)) {
-          setVoiceMode(false);
-          setVoiceTranscript('');
-          setVoiceState('idle');
+          resetVoiceCaptureState();
           return;
         }
         setErrorMessage(error instanceof Error ? error.message : String(error));
-        setVoiceMode(false);
-        setVoiceTranscript('');
-        setVoiceState('idle');
+        resetVoiceCaptureState();
       });
-  }, [finishVoiceModeWithTranscript, setErrorMessage, setStatusMessage, speechRecognition]);
+  }, [
+    finishVoiceModeWithTranscript,
+    resetVoiceCaptureState,
+    setErrorMessage,
+    setStatusMessage,
+    speechRecognition,
+    updateVoiceTranscript,
+  ]);
 
   const abortVoiceCapture = useCallback((): void => {
+    recognitionRequestIdRef.current += 1;
     speechRecognition.abort();
-    setVoiceMode(false);
-    setVoiceTranscript('');
-    setVoiceState('idle');
+    resetVoiceCaptureState();
     setStatusMessage('语音录制已停止');
-  }, [setStatusMessage, speechRecognition]);
+  }, [resetVoiceCaptureState, setStatusMessage, speechRecognition]);
 
   const stopAllVoiceActivity = useCallback(
     (options: { disableMode?: boolean } = {}): void => {
+      recognitionRequestIdRef.current += 1;
       speechRecognition.abort();
       stopSpeechPlayback();
-      setVoiceTranscript('');
+      updateVoiceTranscript('');
       setVoiceState('idle');
       if (options.disableMode ?? true) {
         setVoiceMode(false);
       }
     },
-    [speechRecognition, stopSpeechPlayback],
+    [speechRecognition, stopSpeechPlayback, updateVoiceTranscript],
   );
+
+  const finalizeLiveTranscriptImmediately = useCallback((): void => {
+    const transcript = voiceTranscriptRef.current;
+    recognitionRequestIdRef.current += 1;
+    speechRecognition.abort();
+
+    if (transcript.trim()) {
+      finishVoiceModeWithTranscript(transcript);
+      return;
+    }
+
+    resetVoiceCaptureState();
+    setStatusMessage('语音录制已停止');
+  }, [finishVoiceModeWithTranscript, resetVoiceCaptureState, setStatusMessage, speechRecognition]);
 
   const toggleVoiceMode = useCallback(async (): Promise<void> => {
     if (!voiceModeRef.current) {
@@ -143,10 +183,9 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
     }
 
     if (voiceState === 'listening') {
-      speechRecognition.stop();
-      setStatusMessage('正在结束识别…');
+      finalizeLiveTranscriptImmediately();
     }
-  }, [setStatusMessage, speechRecognition, startVoiceModeCapture, voiceState]);
+  }, [finalizeLiveTranscriptImmediately, startVoiceModeCapture, voiceState]);
 
   const handleRuntimeEvent = useCallback(
     (event: RuntimeEvent): void => {

@@ -273,6 +273,8 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
     };
 
     activeWs.onerror = () => {
+      if (this.ws !== activeWs) return;
+      if (this.finishing) return;
       this.rejectPending(new Error('语音识别 WebSocket 连接失败'));
       this.cleanup();
     };
