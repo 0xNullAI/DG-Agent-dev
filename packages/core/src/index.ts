@@ -200,6 +200,17 @@ export function createEmptyDeviceState(): DeviceState {
   };
 }
 
+export function isDeviceToolName(name: string): boolean {
+  return (
+    name === 'start' ||
+    name === 'stop' ||
+    name === 'adjust_strength' ||
+    name === 'change_wave' ||
+    name === 'burst' ||
+    name === 'emergency_stop'
+  );
+}
+
 export function createMessage(role: MessageRole, content: string, createdAt = Date.now()): ConversationMessage {
   return {
     id: `${createdAt}-${Math.random().toString(36).slice(2, 8)}`,

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { SessionSnapshot } from '@dg-agent/core';
-import { MessageSquarePlus, PanelLeft, Settings2, Trash2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { MessageSquarePlus, PanelLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,7 +13,6 @@ interface SessionPanelProps {
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession?: () => void;
-  onOpenSettings?: () => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 }
@@ -27,7 +25,6 @@ export function SessionPanel({
   onSelectSession,
   onDeleteSession,
   onCreateSession,
-  onOpenSettings,
   collapsed = false,
   onToggleCollapsed,
 }: SessionPanelProps) {
@@ -42,7 +39,7 @@ export function SessionPanel({
   if (collapsed) {
     return (
       <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none transition-all duration-300 ease-out">
-        <div className="shrink-0 px-2.5 pb-3 pt-[0.6875rem]">
+        <div className="shrink-0 space-y-2 px-2.5 pb-3 pt-[0.6875rem]">
           <Button
             variant="ghost"
             className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
@@ -51,9 +48,6 @@ export function SessionPanel({
           >
             <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out" />
           </Button>
-        </div>
-
-        <div className="mt-auto shrink-0 px-2.5 pt-3 pb-9 space-y-2">
           {onCreateSession && (
             <Button
               variant="ghost"
@@ -62,16 +56,6 @@ export function SessionPanel({
               aria-label="发起新对话"
             >
               <MessageSquarePlus className="h-4 w-4" />
-            </Button>
-          )}
-          {onOpenSettings && (
-            <Button
-              variant="ghost"
-              className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-              onClick={onOpenSettings}
-              aria-label="打开设置"
-            >
-              <Settings2 className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -101,10 +85,18 @@ export function SessionPanel({
           )}
 
           <div className="flex items-center justify-between gap-3 px-2 mt-4">
-            <div className="pl-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-faint)]">对话</div>
-            <Badge variant="default" className="h-5 border-transparent bg-transparent px-1.5 text-[10px] text-[var(--text-faint)] shadow-none">
-              {visibleSessions.length}
-            </Badge>
+            <div className="pl-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-faint)]">历史记录</div>
+            {onCreateSession && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 rounded-[8px] px-2.5 text-[12px] font-medium text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                onClick={onCreateSession}
+              >
+                <MessageSquarePlus className="h-3.5 w-3.5" />
+                <span>新对话</span>
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -171,35 +163,6 @@ export function SessionPanel({
         </ScrollArea>
       </CardContent>
 
-      <div className="shrink-0 px-2.5 pb-4 pt-7">
-        <div className="pt-1">
-          {onCreateSession && (
-            <Button
-              variant="ghost"
-              className="h-auto w-full justify-start gap-2.5 rounded-[12px] pl-4 pr-2 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-              onClick={onCreateSession}
-            >
-              <MessageSquarePlus className="h-4 w-4 shrink-0" />
-              <span>发起新对话</span>
-            </Button>
-          )}
-        </div>
-
-        <div className="pt-2 pb-5">
-          {
-            onOpenSettings && (
-              <Button
-                variant="ghost"
-                className="h-auto w-full justify-start gap-2.5 rounded-[12px] pl-4 pr-2 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-                onClick={onOpenSettings}
-              >
-                <Settings2 className="h-4 w-4 shrink-0" />
-                <span>设置与控制</span>
-              </Button>
-            )
-          }
-        </div>
-      </div>
     </Card>
   );
 }

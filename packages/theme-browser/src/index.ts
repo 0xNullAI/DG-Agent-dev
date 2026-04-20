@@ -20,7 +20,7 @@ export function applyTheme(mode: ThemeMode): void {
 
   const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
   if (meta) {
-    meta.content = effective === 'dark' ? '#0b1020' : '#f6f8ff';
+    meta.content = effective === 'dark' ? '#080808' : '#ffffff';
   }
 }
 

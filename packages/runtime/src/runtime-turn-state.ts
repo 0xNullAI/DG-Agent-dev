@@ -6,7 +6,7 @@ export interface TurnState {
   workingItems: LlmConversationItem[];
   totalToolCalls: number;
   adjustStrengthCalls: number;
-  burstCalls: number;
+  burstCallsByChannel: { A: number; B: number };
   narrations: string[];
 }
 
@@ -20,7 +20,7 @@ export function createTurnState(): TurnState {
     workingItems: [],
     totalToolCalls: 0,
     adjustStrengthCalls: 0,
-    burstCalls: 0,
+    burstCallsByChannel: { A: 0, B: 0 },
     narrations: [],
   };
 }
@@ -63,7 +63,7 @@ export function collectTurnToolCalls(turnState: TurnState): TurnToolCallSummary[
   );
 }
 
-export function consumeTurnQuota(toolName: string, turnState: TurnState, config: ToolCallConfig): string | null {
+export function consumeTurnQuota(toolName: string, turnState: TurnState, config: ToolCallConfig, toolArgs?: Record<string, unknown>): string | null {
   if (turnState.totalToolCalls >= config.maxToolCallsPerTurn) {
     return `本轮工具调用次数上限为 ${config.maxToolCallsPerTurn}，请直接回复用户，不要继续调用工具`;
   }
@@ -72,8 +72,11 @@ export function consumeTurnQuota(toolName: string, turnState: TurnState, config:
     return `本轮 adjust_strength 最多只能调用 ${config.maxAdjustStrengthCallsPerTurn} 次`;
   }
 
-  if (toolName === 'burst' && turnState.burstCalls >= config.maxBurstCallsPerTurn) {
-    return `本轮 burst 最多只能调用 ${config.maxBurstCallsPerTurn} 次`;
+  if (toolName === 'burst') {
+    const channel = normalizeBurstChannel(toolArgs);
+    if (turnState.burstCallsByChannel[channel] >= config.maxBurstCallsPerTurn) {
+      return `本轮 burst 通道 ${channel} 最多只能调用 ${config.maxBurstCallsPerTurn} 次`;
+    }
   }
 
   turnState.totalToolCalls += 1;
@@ -81,7 +84,8 @@ export function consumeTurnQuota(toolName: string, turnState: TurnState, config:
     turnState.adjustStrengthCalls += 1;
   }
   if (toolName === 'burst') {
-    turnState.burstCalls += 1;
+    const channel = normalizeBurstChannel(toolArgs);
+    turnState.burstCallsByChannel[channel] += 1;
   }
 
   return null;
@@ -110,6 +114,12 @@ function selectModelContextMessages(
   }
 
   return filteredMessages.slice(userMessageIndices[userMessageIndices.length - 2] ?? 0);
+}
+
+function normalizeBurstChannel(args?: Record<string, unknown>): 'A' | 'B' {
+  const raw = args?.channel;
+  if (typeof raw === 'string' && (raw === 'B' || raw.toUpperCase() === 'B')) return 'B';
+  return 'A';
 }
 
 function shouldSkipModelContextMessage(message: SessionSnapshot['messages'][number]): boolean {

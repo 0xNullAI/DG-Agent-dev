@@ -179,10 +179,10 @@ export function normalizeProviderSettings(input: ProviderSettings): ProviderSett
       normalized.endpoint = normalized.endpoint || 'responses';
       break;
     case 'free':
-      normalized.baseUrl = '';
-      normalized.model = '';
-      normalized.endpoint = 'responses';
-      normalized.useStrict = true;
+      normalized.baseUrl = FREE_TRIAL_PROXY_URL + '/v1';
+      normalized.model = 'deepseek-chat';
+      normalized.endpoint = 'chat/completions';
+      normalized.useStrict = false;
       break;
   }
 
@@ -203,10 +203,10 @@ export function resolveProviderRuntimeSettings(input: ProviderSettings): Provide
     return {
       ...normalized,
       apiKey: 'free',
-      model: 'qwen3.5-plus',
-      baseUrl: FREE_TRIAL_PROXY_URL,
-      endpoint: 'responses',
-      useStrict: true,
+      model: 'deepseek-chat',
+      baseUrl: FREE_TRIAL_PROXY_URL + '/v1',
+      endpoint: 'chat/completions',
+      useStrict: false,
       browserSupported: true,
     };
   }

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface PermissionModalProps {
@@ -17,9 +18,26 @@ export function PermissionModal({
   onAllowSession,
   onDeny,
 }: PermissionModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onDeny();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onDeny]);
+
   return (
-    <section className="permission-modal-backdrop">
-      <div className="permission-modal">
+    <section className="permission-modal-backdrop" role="dialog" aria-modal="true" aria-label="权限请求">
+      <div ref={panelRef} className="permission-modal" tabIndex={-1}>
         <div className="eyebrow">权限请求</div>
         <h2>确认设备操作</h2>
         <div className="permission-summary">{summary}</div>

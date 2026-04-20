@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type BridgeLogEntry, type BridgeManagerStatus, type MessageOrigin } from '@dg-agent/bridge-core';
 import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core';
-import { BrowserAppSettingsStore, type BrowserAppSettings } from '@dg-agent/storage-browser';
 import { BrowserSafetyGuard } from '@dg-agent/safety-browser';
 import { applyTheme, subscribeThemeChanges } from '@dg-agent/theme-browser';
 import type { UpdateCheckerStatus } from '@dg-agent/update-browser';
-import { ChevronRight, X } from 'lucide-react';
-import { BridgePanel } from './components/BridgePanel.js';
+import { X } from 'lucide-react';
 import { ChatPanel } from './components/ChatPanel.js';
-import { EventsPanel } from './components/EventsPanel.js';
 import { PermissionModal } from './components/PermissionModal.js';
-import { RuntimeStatusPanel } from './components/RuntimeStatusPanel.js';
 import { SafetyNoticeModal } from './components/SafetyNoticeModal.js';
-import { SettingsPanel } from './components/SettingsPanel.js';
 import { SessionPanel } from './components/SessionPanel.js';
 import { WaveformsPanel } from './components/WaveformsPanel.js';
+import { GeneralTab } from './components/settings/GeneralTab.js';
+import { SafetyTab } from './components/settings/SafetyTab.js';
+import { BridgeTab } from './components/settings/BridgeTab.js';
+import { VoiceTab } from './components/settings/VoiceTab.js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,7 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import {
   Sheet,
   SheetClose,
@@ -40,6 +38,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useBrowserAppServices, type PendingPermissionRequest } from './composition/use-browser-app-services.js';
 import { useRuntimeSessionState } from './hooks/use-runtime-session-state.js';
+import { useSettingsManager } from './hooks/use-settings-manager.js';
+import { useToastManager } from './hooks/use-toast-manager.js';
 import { useVoiceController } from './hooks/use-voice-controller.js';
 import { useWaveformManager } from './hooks/use-waveform-manager.js';
 import { createSessionId, isReplyAbortError } from './utils/app-runtime-helpers.js';
@@ -47,7 +47,7 @@ import { buildWarnings } from './utils/runtime-warnings.js';
 import { formatUiErrorMessage, getRecentToolActivities, isBluetoothChooserCancelledError } from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
 
-type InspectorTab = 'runtime' | 'settings' | 'waveforms' | 'bridge' | 'events';
+type SettingsModalTab = 'general' | 'safety' | 'waveforms' | 'bridge' | 'voice';
 
 function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): string {
   switch (voiceState) {
@@ -61,34 +61,6 @@ function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): s
   }
 }
 
-function localizeToastText(text: string): string {
-  if (/Device is not connected\./i.test(text)) {
-    return '设备尚未连接';
-  }
-  if (/Cold-start strength is capped at (\d+)/i.test(text)) {
-    const match = text.match(/Cold-start strength is capped at (\d+)/i);
-    return `冷启动强度上限为 ${match?.[1] ?? '10'}`;
-  }
-  if (/Tool calls for this turn are capped at (\d+)/i.test(text)) {
-    const match = text.match(/Tool calls for this turn are capped at (\d+)/i);
-    return `当前轮次最多只能调用 ${match?.[1] ?? ''} 次工具`;
-  }
-  if (/adjust_strength is capped at (\d+)/i.test(text)) {
-    const match = text.match(/adjust_strength is capped at (\d+)/i);
-    return `本轮 adjust_strength 最多只能调用 ${match?.[1] ?? ''} 次`;
-  }
-  if (/burst is capped at (\d+)/i.test(text)) {
-    const match = text.match(/burst is capped at (\d+)/i);
-    return `本轮 burst 最多只能调用 ${match?.[1] ?? ''} 次`;
-  }
-  if (/requires an already active channel/i.test(text)) {
-    return '当前通道还没有运行，不能直接执行 burst，请先启动通道';
-  }
-  if (/A mutating action requires permission\./i.test(text)) {
-    return '该操作会修改设备状态，需要先获得权限';
-  }
-  return text;
-}
 
 export function App() {
   const activeSessionIdRef = useRef<string | null>(null);
@@ -97,31 +69,36 @@ export function App() {
   );
   const resolveBridgeSessionId = useCallback((origin: MessageOrigin) => bridgeSessionResolverRef.current(origin), []);
 
-  const settingsStore = useMemo(
-    () =>
-      new BrowserAppSettingsStore({
-        env: import.meta.env,
-      }),
-    [],
-  );
-  const initialSettings = useMemo(() => settingsStore.load(), [settingsStore]);
-  const [settingsDraft, setSettingsDraft] = useState<BrowserAppSettings>(initialSettings);
-  const [settings, setSettings] = useState<BrowserAppSettings>(initialSettings);
+  const {
+    settingsDraft,
+    setSettingsDraft,
+    settings,
+    setSettings,
+    settingsStore,
+    savePromptDialogOpen,
+    setSavePromptDialogOpen,
+    promptPresetName,
+    setPromptPresetName,
+    resetSettings: resetSettingsManager,
+    saveCurrentPromptPreset: saveCurrentPromptPresetManager,
+    confirmSaveCurrentPromptPreset: confirmSaveCurrentPromptPresetManager,
+    deleteSavedPromptPreset: deleteSavedPromptPresetManager,
+    flushSettingsDraft,
+    clearSessionPermissionOverride,
+  } = useSettingsManager();
+
   const [pendingPermission, setPendingPermission] = useState<PendingPermissionRequest | null>(null);
   const [bridgeLogs, setBridgeLogs] = useState<BridgeLogEntry[]>([]);
   const [bridgeStatus, setBridgeStatus] = useState<BridgeManagerStatus | null>(null);
   const [pendingSend, setPendingSend] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [toastVisibility, setToastVisibility] = useState<Record<string, boolean>>({});
-  const [safetyNoticeAccepted, setSafetyNoticeAccepted] = useState(() => !initialSettings.showSafetyNoticeOnStartup);
+  const [safetyNoticeAccepted, setSafetyNoticeAccepted] = useState(() => !settings.showSafetyNoticeOnStartup);
   const [text, setText] = useState('');
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>('runtime');
-  const [controlOpen, setControlOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [settingsModalTab, setSettingsModalTab] = useState<SettingsModalTab>('general');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [savePromptDialogOpen, setSavePromptDialogOpen] = useState(false);
-  const [promptPresetName, setPromptPresetName] = useState('');
 
   const {
     waveformLibrary,
@@ -181,6 +158,17 @@ export function App() {
   } = runtimeSession;
 
   const busy = pendingSend || replyBusy;
+  const deviceState = liveDeviceState ?? createEmptyDeviceState();
+  const warnings = buildWarnings(settings, modes, speechCapabilities);
+  const toolActivities = getRecentToolActivities(events);
+  const traceFeed = buildTraceFeed(sessionTrace);
+
+  const {
+    visibleErrorItems,
+    visibleWarnings,
+    visibleEventToasts,
+    hasVisibleToasts,
+  } = useToastManager({ errorMessage, warnings, events });
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
@@ -423,9 +411,7 @@ export function App() {
   }
 
   async function createNewSession(): Promise<void> {
-    const nextSettings = settingsStore.clearSessionPermissionModeOverride();
-    setSettingsDraft(nextSettings);
-    setSettings(nextSettings);
+    clearSessionPermissionOverride();
     resetPermissionGrants();
 
     if (activeSessionId) {
@@ -493,145 +479,48 @@ export function App() {
   }
 
   function resetSettings(): void {
-    const next = settingsStore.reset();
-    setSettingsDraft(next);
-    setSettings(next);
-    setStatusMessage('设置已恢复默认值');
-    clearEvents();
+    resetSettingsManager(() => {
+      setStatusMessage('设置已恢复默认值');
+      clearEvents();
+    });
   }
 
   function saveCurrentPromptPreset(): void {
-    const prompt = settingsDraft.customPrompt.trim();
-    if (!prompt) {
-      setErrorMessage('请先输入自定义提示词，再保存预设');
-      return;
-    }
-
-    setPromptPresetName('');
-    setSavePromptDialogOpen(true);
+    saveCurrentPromptPresetManager(setErrorMessage);
   }
 
   function confirmSaveCurrentPromptPreset(): void {
-    const prompt = settingsDraft.customPrompt.trim();
-    if (!prompt) {
-      setSavePromptDialogOpen(false);
-      setPromptPresetName('');
-      setErrorMessage('请先输入自定义提示词，再保存预设');
-      return;
-    }
-
-    const name = promptPresetName.trim();
-    if (!name) {
-      setErrorMessage('请输入这组提示词的名称');
-      return;
-    }
-
-    const preset = {
-      id: `saved-${Date.now().toString(36)}`,
-      name,
-      prompt,
-    };
-
-    setSettingsDraft((current) => ({
-      ...current,
-      promptPresetId: preset.id,
-      savedPromptPresets: [preset, ...current.savedPromptPresets],
-    }));
-    setSavePromptDialogOpen(false);
-    setPromptPresetName('');
-    setStatusMessage('已保存自定义提示词');
+    confirmSaveCurrentPromptPresetManager(setErrorMessage, setStatusMessage);
   }
 
   function deleteSavedPromptPreset(presetId: string): void {
-    setSettingsDraft((current) => {
-      const nextSavedPresets = current.savedPromptPresets.filter((item) => item.id !== presetId);
-      return {
-        ...current,
-        promptPresetId: current.promptPresetId === presetId ? 'gentle' : current.promptPresetId,
-        savedPromptPresets: nextSavedPresets,
-      };
-    });
-    setStatusMessage('已删除该自定义提示词');
+    deleteSavedPromptPresetManager(presetId, setStatusMessage);
   }
 
-  function openInspector(tab: InspectorTab): void {
-    setInspectorTab(tab);
-    setControlOpen(true);
+  function openSettingsModal(tab: SettingsModalTab = 'general'): void {
+    setSettingsModalTab(tab);
+    setSettingsModalOpen(true);
   }
 
-  const deviceState = liveDeviceState ?? createEmptyDeviceState();
-  const warnings = buildWarnings(settings, modes, speechCapabilities);
-  const toolActivities = getRecentToolActivities(events);
-  const traceFeed = buildTraceFeed(sessionTrace);
-  const errorToastItems = errorMessage
-    ? [{ key: `error:${errorMessage}`, text: errorMessage, variant: 'destructive' as const }]
-    : [];
-  const warningToastItems = warnings.map((warning) => ({
-    key: `warning:${warning}`,
-    text: warning,
-    variant: 'warning' as const,
-  }));
-  const eventToastItems = events
-    .filter(
-      (event) =>
-        event.type === 'assistant-message-aborted',
-    )
-    .slice(0, 4)
-    .map((event) => {
-      switch (event.type) {
-        case 'assistant-message-aborted':
-          return {
-            key: `event:aborted:${event.sessionId}:${event.message.id}`,
-            text: '已停止当前回复',
-            variant: 'info' as const,
-          };
-      }
-    });
-  const autoDismissToastItems = [...errorToastItems, ...warningToastItems, ...eventToastItems];
-  const autoDismissToastKey = autoDismissToastItems.map((item) => item.key).join('||');
-  const visibleErrorItems = errorToastItems.filter((item) => toastVisibility[item.key] !== false);
-  const visibleWarnings = warningToastItems.filter((item) => toastVisibility[item.key] !== false);
-  const visibleEventToasts = eventToastItems.filter((item) => toastVisibility[item.key] !== false);
-
-  useEffect(() => {
-    setToastVisibility((current) => Object.fromEntries(autoDismissToastItems.map((item) => [item.key, current[item.key] ?? true])));
-
-    const timers = autoDismissToastItems.map((item) =>
-      window.setTimeout(() => {
-        setToastVisibility((current) => (current[item.key] === false ? current : { ...current, [item.key]: false }));
-      }, 4200),
-    );
-
-    return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
-    };
-  }, [autoDismissToastKey]);
-
-  function handleControlOpenChange(nextOpen: boolean): void {
-    if (controlOpen && !nextOpen && JSON.stringify(settingsDraft) !== JSON.stringify(settings)) {
-      const next = settingsStore.save(settingsDraft);
-      setSettings(next);
-      setSettingsDraft(next);
+  function handleSettingsModalOpenChange(nextOpen: boolean): void {
+    if (settingsModalOpen && !nextOpen) {
+      flushSettingsDraft();
     }
-
     if (!nextOpen) {
       setEditingWaveform(null);
     }
-
-    setControlOpen(nextOpen);
+    setSettingsModalOpen(nextOpen);
   }
 
-  function renderInspectorPanel() {
-    switch (inspectorTab) {
-      case 'settings':
+  function renderSettingsTabContent() {
+    switch (settingsModalTab) {
+      case 'general':
         return (
-          <SettingsPanel
-            settingsDraft={settingsDraft}
-            setSettingsDraft={setSettingsDraft}
-            onSaveCurrentPromptPreset={saveCurrentPromptPreset}
-            onDeleteSavedPromptPreset={deleteSavedPromptPreset}
-            onResetSettings={resetSettings}
-          />
+          <GeneralTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />
+        );
+      case 'safety':
+        return (
+          <SafetyTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />
         );
       case 'waveforms':
         return (
@@ -644,24 +533,15 @@ export function App() {
           />
         );
       case 'bridge':
-        return <BridgePanel enabled={settings.bridge.enabled} bridgeStatus={bridgeStatus} bridgeLogs={bridgeLogs} />;
-      case 'events':
-        return <EventsPanel events={events} />;
-      case 'runtime':
-      default:
         return (
-          <RuntimeStatusPanel
-            client={client}
-            modes={modes}
-            settings={settings}
-            bridgeStatus={bridgeStatus}
-            activeSessionId={activeSessionId}
-            deviceState={deviceState}
-            voiceMode={voiceMode}
-            voiceState={voiceState}
-            speechCapabilities={speechCapabilities}
-          />
+          <BridgeTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />
         );
+      case 'voice':
+        return (
+          <VoiceTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />
+        );
+      default:
+        return null;
     }
   }
 
@@ -682,14 +562,14 @@ export function App() {
   }
 
   const floatingStatus =
-    voiceMode || visibleErrorItems.length > 0 || visibleWarnings.length > 0 || visibleEventToasts.length > 0 || updateStatus.hasUpdate ? (
+    voiceMode || hasVisibleToasts || updateStatus.hasUpdate ? (
       <div
         className={[
           'pointer-events-none absolute inset-x-0 z-40 flex justify-center px-3',
-          deviceState.connected ? 'top-[7.25rem]' : 'top-[5.25rem]',
+          deviceState.connected ? 'top-[6.5rem]' : 'top-[4rem]',
         ].join(' ')}
       >
-        <div className="flex w-full max-w-[940px] flex-col gap-3">
+        <div className="flex w-full max-w-[800px] flex-col gap-3">
           {voiceMode && (
             <section className="pointer-events-auto mx-auto w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-center shadow-[var(--shadow)]">
               <div className="text-sm font-medium text-[var(--text)]">语音状态：{formatVoiceStateLabel(voiceState)}</div>
@@ -743,22 +623,6 @@ export function App() {
   return (
     <>
       <main className="relative flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden" aria-hidden={!safetyNoticeAccepted}>
-        <div className="pointer-events-none fixed left-0 top-1/2 z-40 -translate-y-1/2 lg:hidden">
-          <div className="pointer-events-auto">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-14 w-7 rounded-l-none rounded-r-full border border-l-0 border-[var(--surface-border)] bg-[var(--bg-elevated)]/95 shadow-[var(--shadow)] backdrop-blur hover:bg-[var(--bg-strong)]"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="打开会话列表"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-
         {pendingPermission && (
           <PermissionModal
             summary={pendingPermission.input.summary}
@@ -770,6 +634,7 @@ export function App() {
           />
         )}
 
+        {/* Save prompt dialog */}
         <Dialog
           open={savePromptDialogOpen}
           onOpenChange={(open) => {
@@ -814,6 +679,7 @@ export function App() {
           </DialogContent>
         </Dialog>
 
+        {/* Waveform editor dialog */}
         <Dialog
           open={Boolean(editingWaveform)}
           onOpenChange={(open) => {
@@ -876,39 +742,46 @@ export function App() {
           )}
         </Dialog>
 
-        <Sheet open={controlOpen} onOpenChange={handleControlOpenChange}>
-          <SheetContent side="right" className="flex h-full max-w-[520px] flex-col overflow-hidden bg-[var(--bg-elevated)] p-4 [&>button]:hidden">
-            <SheetHeader>
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <SheetTitle>控制台</SheetTitle>
-                  <SheetDescription className="mt-1.5">设置、波形、桥接和调试信息都收在这里</SheetDescription>
-                </div>
-                <SheetClose className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
-                  <X className="h-5 w-5" />
-                  <span className="sr-only">关闭</span>
-                </SheetClose>
+        {/* ===== Settings modal (centered dialog, not side sheet) ===== */}
+        <Dialog open={settingsModalOpen} onOpenChange={handleSettingsModalOpenChange}>
+          <DialogContent
+            overlayClassName="bg-black/18 backdrop-blur-[2px]"
+            className="flex max-h-[85vh] w-[calc(100%-1rem)] max-w-[720px] flex-col overflow-hidden p-0 sm:w-[calc(100%-2rem)]"
+          >
+            <div className="flex items-center justify-between border-b border-[var(--surface-border)] px-4 py-3 sm:px-6 sm:py-4">
+              <div>
+                <DialogTitle className="text-[1.1rem] tracking-[-0.03em]">设置</DialogTitle>
+                <DialogDescription className="mt-1">设置、波形、桥接和调试信息</DialogDescription>
               </div>
-            </SheetHeader>
+            </div>
 
-            <Tabs value={inspectorTab} onValueChange={(value) => setInspectorTab(value as InspectorTab)} className="flex min-h-0 flex-1 flex-col control-tabs-shell control-tabs-shell-main">
-              <TabsList className="control-tabs control-tabs-main mr-1 grid w-[calc(100%-0.25rem)] grid-cols-2 gap-0 lg:grid-cols-5">
-                <TabsTrigger className="control-tab-trigger" value="runtime">运行</TabsTrigger>
-                <TabsTrigger className="control-tab-trigger" value="settings">设置</TabsTrigger>
-                <TabsTrigger className="control-tab-trigger" value="waveforms">波形</TabsTrigger>
-                <TabsTrigger className="control-tab-trigger" value="bridge">桥接</TabsTrigger>
-                <TabsTrigger className="control-tab-trigger" value="events">事件</TabsTrigger>
-              </TabsList>
+            <Tabs value={settingsModalTab} onValueChange={(value) => setSettingsModalTab(value as SettingsModalTab)} className="flex min-h-0 flex-1 flex-col">
+              <div className="border-b border-[var(--surface-border)] px-3 sm:px-6">
+                <TabsList className="control-tabs grid w-full grid-cols-3 gap-0 bg-transparent sm:grid-cols-5">
+                  <TabsTrigger className="control-tab-trigger" value="general">基础</TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="safety">安全</TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="waveforms">波形</TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="bridge">桥接</TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="voice">语音</TabsTrigger>
+                </TabsList>
+              </div>
 
-              <TabsContent value={inspectorTab} className="mt-5 min-h-0 flex-1 overflow-hidden">
-                <ScrollArea className="h-full min-h-0 pr-1">
-                  {renderInspectorPanel()}
-                </ScrollArea>
+              <TabsContent value={settingsModalTab} className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+                <div className="settings settings-grouped settings-panel-body">
+                  {renderSettingsTabContent()}
+                </div>
+                <div className="settings-actions settings-actions-footer mt-6">
+                  <div className="text-sm text-[var(--text-faint)]">设置会自动保存到当前浏览器</div>
+                  <Button variant="secondary" onClick={resetSettings}>
+                    恢复默认
+                  </Button>
+                </div>
               </TabsContent>
             </Tabs>
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
 
+        {/* ===== Sidebar sheet (mobile) ===== */}
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent
             side="left"
@@ -933,18 +806,17 @@ export function App() {
                 onSelectSession={selectSession}
                 onDeleteSession={(sessionId) => void deleteSession(sessionId)}
                 onCreateSession={() => void createNewSession()}
-                onOpenSettings={() => openInspector('settings')}
               />
             </div>
           </SheetContent>
         </Sheet>
 
-          <section
-            className={[
-              'grid min-h-0 flex-1 grid-cols-1 overflow-hidden transition-[grid-template-columns] duration-300 ease-out',
-              sidebarCollapsed ? 'lg:grid-cols-[70px_minmax(0,1fr)]' : 'lg:grid-cols-[272px_minmax(0,1fr)]',
-            ].join(' ')}
-          >
+        {/* ===== Main layout ===== */}
+        <section
+          className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] overflow-hidden transition-[grid-template-columns] duration-300 ease-out lg:grid-cols-[var(--sidebar-w)_minmax(0,1fr)]"
+          style={{ '--sidebar-w': sidebarCollapsed ? '70px' : '272px' } as React.CSSProperties}
+        >
+          {/* Desktop sidebar */}
           <aside className="hidden min-h-0 overflow-hidden border-r border-[var(--surface-border)] bg-[var(--bg-elevated)] transition-all duration-300 ease-out lg:block">
             <SessionPanel
               savedSessions={savedSessions}
@@ -952,12 +824,12 @@ export function App() {
               onSelectSession={selectSession}
               onDeleteSession={(sessionId) => void deleteSession(sessionId)}
               onCreateSession={() => void createNewSession()}
-              onOpenSettings={() => openInspector('settings')}
               collapsed={sidebarCollapsed}
               onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
             />
           </aside>
 
+          {/* Chat section */}
           <section className="relative flex min-h-0 min-w-0 overflow-hidden">
             {floatingStatus}
             <ChatPanel
@@ -982,10 +854,15 @@ export function App() {
               toolActivities={toolActivities}
               onConnect={() => void connect()}
               onEmergencyStop={() => void stop()}
+              onOpenSidebar={() => setSidebarOpen(true)}
+              onOpenSettings={() => openSettingsModal('general')}
+              settingsDraft={settingsDraft}
+              setSettingsDraft={setSettingsDraft}
+              onSaveCurrentPromptPreset={saveCurrentPromptPreset}
+              onDeleteSavedPromptPreset={deleteSavedPromptPreset}
             />
           </section>
         </section>
-        </div>
       </main>
 
       {!safetyNoticeAccepted && <SafetyNoticeModal onAccept={handleSafetyNoticeAccept} />}

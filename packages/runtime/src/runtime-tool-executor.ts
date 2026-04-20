@@ -1,5 +1,5 @@
 import type { DevicePort, LoggerPort, PermissionPort, SessionTraceStorePort } from '@dg-agent/contracts';
-import type { ActionContext, DeviceCommand, RuntimeEvent, SessionSnapshot, ToolCall, ToolExecutionPlan } from '@dg-agent/core';
+import { isDeviceToolName, type ActionContext, type DeviceCommand, type RuntimeEvent, type SessionSnapshot, type ToolCall, type ToolExecutionPlan } from '@dg-agent/core';
 import { DeviceCommandQueue } from './device-command-queue.js';
 import { throwIfAborted } from './runtime-errors.js';
 import { consumeTurnQuota, type TurnState } from './runtime-turn-state.js';
@@ -66,7 +66,7 @@ export class RuntimeToolExecutor {
       args: toolCall.args,
     });
 
-    const quotaError = consumeTurnQuota(toolCall.name, turnState, this.options.toolCallConfig);
+    const quotaError = consumeTurnQuota(toolCall.name, turnState, this.options.toolCallConfig, toolCall.args);
     if (quotaError) {
       return this.denyToolCall(session, displayToolCall, quotaError, context);
     }
@@ -336,17 +336,6 @@ export class RuntimeToolExecutor {
   }
 }
 
-function isDeviceToolName(name: string): boolean {
-  return (
-    name === 'start' ||
-    name === 'stop' ||
-    name === 'adjust_strength' ||
-    name === 'change_wave' ||
-    name === 'burst' ||
-    name === 'emergency_stop'
-  );
-}
-
 function validateBurstExecution(
   command: DeviceCommand,
   deviceState: SessionSnapshot['deviceState'],
@@ -358,5 +347,5 @@ function validateBurstExecution(
   const waveActive = command.channel === 'A' ? deviceState.waveActiveA : deviceState.waveActiveB;
   if (current > 0 && waveActive) return null;
 
-  return `Channel ${command.channel} is not currently running (strength=${current}, waveActive=${waveActive}); burst requires an already active channel. Start the channel first, then call burst.`;
+  return `当前通道 ${command.channel} 还没有运行（strength=${current}, waveActive=${waveActive}），不能直接执行 burst，请先启动通道`;
 }

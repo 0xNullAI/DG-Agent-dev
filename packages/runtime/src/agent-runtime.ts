@@ -2,6 +2,7 @@ import type { DevicePort, LlmConversationItem, LlmPort, LoggerPort, PermissionPo
 import {
   createEmptyDeviceState,
   createMessage,
+  isDeviceToolName,
   mergeBridgeOriginMetadata,
   type ActionContext,
   type ConversationMessage,
@@ -671,13 +672,3 @@ function shouldStopTurnForDisconnectedDevice(toolName: string, output: string): 
   }
 }
 
-function isDeviceToolName(name: string): boolean {
-  return (
-    name === 'start' ||
-    name === 'stop' ||
-    name === 'adjust_strength' ||
-    name === 'change_wave' ||
-    name === 'burst' ||
-    name === 'emergency_stop'
-  );
-}

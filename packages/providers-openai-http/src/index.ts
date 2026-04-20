@@ -60,6 +60,7 @@ export class OpenAiHttpLlmPort implements LlmPort {
   }
 
   async runTurn(input: LlmTurnInput): Promise<LlmTurnResult> {
+    validateApiKey(this.config.apiKey);
     if (this.config.endpoint === 'responses') {
       return this.runResponsesTurn(input);
     }
@@ -412,6 +413,14 @@ function toChatTool(tool: ToolDefinition, useStrict: boolean): Record<string, un
       parameters: useStrict ? strictify(tool.parameters) : tool.parameters,
     },
   };
+}
+
+function validateApiKey(apiKey: string): void {
+  if (!/^[\x20-\x7E]+$/.test(apiKey)) {
+    throw new Error(
+      'API key 含有非法字符（可能混入了中文、全角空格或不可见字符）。请在设置中重新粘贴一次纯英文/数字的 key。',
+    );
+  }
 }
 
 function normalizeContent(content: string | null | undefined): string {

@@ -1,0 +1,129 @@
+import type { Dispatch, SetStateAction } from 'react';
+import { PROXY_TTS_SPEAKERS } from '@dg-agent/audio-browser';
+import { Input } from '@/components/ui/input';
+
+import type { BrowserAppSettings } from '@dg-agent/storage-browser';
+import { SettingSelect } from './SettingSelect.js';
+import { SettingSegmented } from './SettingSegmented.js';
+import { SettingToggle } from './SettingToggle.js';
+
+interface VoiceTabProps {
+  settingsDraft: BrowserAppSettings;
+  setSettingsDraft: Dispatch<SetStateAction<BrowserAppSettings>>;
+}
+
+export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
+  function updateVoiceSettings<K extends keyof BrowserAppSettings['voice']>(
+    key: K,
+    value: BrowserAppSettings['voice'][K],
+  ): void {
+    setSettingsDraft((current) => ({
+      ...current,
+      voice: {
+        ...current.voice,
+        [key]: value,
+      },
+    }));
+  }
+
+  return (
+    <div className="settings-panel-tab-content">
+      <section className="settings-group">
+        <h3 className="settings-group-title">语音</h3>
+
+        <SettingToggle
+          label="启用语音输入"
+          checked={settingsDraft.voiceInputEnabled}
+          onCheckedChange={(checked) =>
+            setSettingsDraft((current) => ({
+              ...current,
+              voiceInputEnabled: checked,
+            }))
+          }
+        />
+
+        <SettingToggle
+          label="朗读 AI 回复"
+          checked={settingsDraft.ttsEnabled}
+          onCheckedChange={(checked) =>
+            setSettingsDraft((current) => ({
+              ...current,
+              ttsEnabled: checked,
+            }))
+          }
+        />
+
+        <SettingSegmented
+          label="语音后端"
+          value={settingsDraft.voice.mode}
+          onValueChange={(value) => updateVoiceSettings('mode', value as BrowserAppSettings['voice']['mode'])}
+          options={[
+            { value: 'browser', label: '浏览器原生' },
+            { value: 'dashscope-proxy', label: 'DashScope 代理' },
+          ]}
+        />
+
+        {settingsDraft.voice.mode === 'dashscope-proxy' && (
+          <div className="provider-hint">
+            兼容旧版语音链路：浏览器采集麦克风，经过 WebSocket 代理进行 ASR/TTS，留空代理地址时使用内置免费代理
+          </div>
+        )}
+
+        <label>
+          <span>语音语言</span>
+          <Input
+            value={settingsDraft.voiceLanguage}
+            onChange={(event) =>
+              setSettingsDraft((current) => ({
+                ...current,
+                voiceLanguage: event.target.value,
+              }))
+            }
+            placeholder="zh-CN"
+          />
+        </label>
+
+        {settingsDraft.voice.mode === 'dashscope-proxy' && (
+          <>
+            <label>
+              <span>语音 API 密钥</span>
+              <Input
+                type="password"
+                value={settingsDraft.voice.apiKey}
+                onChange={(event) => updateVoiceSettings('apiKey', event.target.value)}
+                placeholder="sk-...（留空使用免费共享额度）"
+              />
+            </label>
+
+            <label>
+              <span>语音代理地址</span>
+              <Input
+                value={settingsDraft.voice.proxyUrl}
+                onChange={(event) => updateVoiceSettings('proxyUrl', event.target.value)}
+                placeholder="留空使用默认免费代理"
+              />
+            </label>
+
+            <label>
+              <span>语音发音人</span>
+              <SettingSelect
+                value={settingsDraft.voice.speaker}
+                onValueChange={(value) => updateVoiceSettings('speaker', value)}
+                options={PROXY_TTS_SPEAKERS.map((speaker) => ({
+                  value: speaker.id,
+                  label: speaker.label,
+                }))}
+              />
+            </label>
+
+            <SettingToggle
+              label="静音后自动停止收音"
+              checked={settingsDraft.voice.autoStopEnabled}
+              onCheckedChange={(checked) => updateVoiceSettings('autoStopEnabled', checked)}
+            />
+          </>
+        )}
+      </section>
+    </div>
+  );
+}

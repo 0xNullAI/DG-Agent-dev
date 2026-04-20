@@ -86,7 +86,13 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
       if (!active) return;
 
       setSavedSessions(sessions);
-      setActiveSessionId((current) => current ?? sessions[0]?.id ?? null);
+      const firstId = sessions[0]?.id;
+      if (firstId) {
+        setActiveSessionId((current) => current ?? firstId);
+      } else {
+        const newId = `session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        setActiveSessionId((current) => current ?? newId);
+      }
     }
 
     void bootstrap();
