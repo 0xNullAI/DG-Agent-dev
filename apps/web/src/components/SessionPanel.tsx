@@ -148,7 +148,7 @@ export function SessionPanel({
 
       {/* Session list */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-2">
-        <ScrollArea className="h-full px-2">
+        <ScrollArea className="h-full px-3">
           <div className="space-y-0.5 pb-4">
             {visibleSessions.length === 0 && (
               <div className="px-3 py-8 text-center text-sm text-[var(--text-faint)]">
