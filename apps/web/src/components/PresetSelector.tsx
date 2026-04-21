@@ -194,7 +194,7 @@ export function PresetSelector({
           onClick={startCreate}
         >
           <Plus className="h-4 w-4" />
-          新建场景
+          <span className="text-sm -mt-[0.1em]">新建场景</span>
         </Button>
       )}
     </div>
