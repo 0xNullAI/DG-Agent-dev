@@ -11,7 +11,7 @@ const buttonVariants = cva(
         default:
           'border border-transparent bg-[var(--accent)] text-[var(--button-text)] hover:brightness-105 active:scale-[0.98]',
         secondary:
-          'border border-[var(--surface-border)] bg-[var(--bg-strong)] text-[var(--text)] hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]',
+          'border border-[var(--surface-border)] text-[var(--text)] hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]',
         ghost: 'text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]',
         destructive:
           'border border-transparent bg-[var(--danger)] text-white hover:brightness-105 active:scale-[0.98]',
