@@ -1,8 +1,5 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import {
-  BUILTIN_PROMPT_PRESETS,
-  type SavedPromptPreset,
-} from '@dg-agent/prompts-basic';
+import { BUILTIN_PROMPT_PRESETS, type SavedPromptPreset } from '@dg-agent/prompts-basic';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -233,7 +230,12 @@ function PresetItem({
     >
       <span className="shrink-0 text-lg">{icon}</span>
       <div className="min-w-0 flex-1">
-        <div className={cn('text-sm', active ? 'font-medium text-[var(--text)]' : 'text-[var(--text)]')}>
+        <div
+          className={cn(
+            'text-sm',
+            active ? 'font-medium text-[var(--text)]' : 'text-[var(--text)]',
+          )}
+        >
           {name}
         </div>
         {description && (

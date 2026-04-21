@@ -588,9 +588,7 @@ export function App() {
 
   const floatingStatus =
     voiceMode || hasVisibleToasts || updateStatus.hasUpdate ? (
-      <div
-        className="pointer-events-none absolute inset-x-0 top-[3.5rem] z-40 flex justify-center px-3"
-      >
+      <div className="pointer-events-none absolute inset-x-0 top-[3.5rem] z-40 flex justify-center px-3">
         <div className="flex w-full max-w-[800px] flex-col gap-3">
           {voiceMode && (
             <section className="pointer-events-auto mx-auto w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-center shadow-[var(--shadow)]">

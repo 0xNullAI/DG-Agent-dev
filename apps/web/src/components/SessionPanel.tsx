@@ -20,8 +20,10 @@ interface SessionPanelProps {
 }
 
 const SESSION_BATCH_SIZE = 60;
-const ICON_BTN = 'h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
-const SIDEBAR_BTN = 'h-9 w-full justify-start gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
+const ICON_BTN =
+  'h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
+const SIDEBAR_BTN =
+  'h-9 w-full justify-start gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
 
 export function SessionPanel({
   savedSessions,
@@ -130,20 +132,12 @@ export function SessionPanel({
       {/* Action buttons — each on its own row */}
       <div className="shrink-0 space-y-0.5 px-3 pb-3">
         {onCreateSession && (
-          <Button
-            variant="ghost"
-            className={SIDEBAR_BTN}
-            onClick={onCreateSession}
-          >
+          <Button variant="ghost" className={SIDEBAR_BTN} onClick={onCreateSession}>
             <SquarePen className="h-4 w-4 shrink-0" />
             新对话
           </Button>
         )}
-        <Button
-          variant="ghost"
-          className={SIDEBAR_BTN}
-          onClick={() => setSearchOpen(true)}
-        >
+        <Button variant="ghost" className={SIDEBAR_BTN} onClick={() => setSearchOpen(true)}>
           <Search className="h-4 w-4 shrink-0" />
           搜索
         </Button>
@@ -210,9 +204,7 @@ export function SessionPanel({
                 <Button
                   variant="ghost"
                   className="h-8 rounded-full px-4 text-xs text-[var(--text-faint)] hover:text-[var(--text)]"
-                  onClick={() =>
-                    setVisibleSessionCount((current) => current + SESSION_BATCH_SIZE)
-                  }
+                  onClick={() => setVisibleSessionCount((current) => current + SESSION_BATCH_SIZE)}
                 >
                   加载更多（{visibleSessions.length - renderedSessions.length}）
                 </Button>
@@ -225,11 +217,7 @@ export function SessionPanel({
       {/* Settings — bottom */}
       {onOpenSettings && (
         <div className="shrink-0 border-t border-[var(--surface-border)] px-3 py-2">
-          <Button
-            variant="ghost"
-            className={SIDEBAR_BTN}
-            onClick={onOpenSettings}
-          >
+          <Button variant="ghost" className={SIDEBAR_BTN} onClick={onOpenSettings}>
             <Settings className="h-4 w-4 shrink-0" />
             设置
           </Button>

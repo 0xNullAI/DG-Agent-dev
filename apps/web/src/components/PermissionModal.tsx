@@ -49,37 +49,24 @@ export function PermissionModal({
         tabIndex={-1}
       >
         <div className="text-center text-xs font-medium text-[var(--accent)]">权限请求</div>
-        <h2 className="mt-2 text-center text-base font-semibold text-[var(--text)]">确认设备操作</h2>
+        <h2 className="mt-2 text-center text-base font-semibold text-[var(--text)]">
+          确认设备操作
+        </h2>
         <div className="mt-3 text-center text-sm text-[var(--text-soft)]">{summary}</div>
 
         <ArgsCollapsible args={args} />
 
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button
-            variant="secondary"
-            className="rounded-[10px] text-[13px]"
-            onClick={onAllowOnce}
-          >
+          <Button variant="secondary" className="rounded-[10px] text-[13px]" onClick={onAllowOnce}>
             仅本次允许
           </Button>
-          <Button
-            variant="secondary"
-            className="rounded-[10px] text-[13px]"
-            onClick={onAllowTimed}
-          >
+          <Button variant="secondary" className="rounded-[10px] text-[13px]" onClick={onAllowTimed}>
             允许 5 分钟
           </Button>
-          <Button
-            className="rounded-[10px] text-[13px]"
-            onClick={onAllowSession}
-          >
+          <Button className="rounded-[10px] text-[13px]" onClick={onAllowSession}>
             允许本会话
           </Button>
-          <Button
-            variant="destructive"
-            className="rounded-[10px] text-[13px]"
-            onClick={onDeny}
-          >
+          <Button variant="destructive" className="rounded-[10px] text-[13px]" onClick={onDeny}>
             拒绝
           </Button>
         </div>

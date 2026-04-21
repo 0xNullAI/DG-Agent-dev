@@ -131,11 +131,13 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
       <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 pb-3">
         <span className="text-sm font-medium text-[var(--text)]">主题模式</span>
         <div className="flex rounded-full bg-[var(--bg-strong)] p-0.5">
-          {([
-            { value: 'auto', label: '系统' },
-            { value: 'dark', label: '深色' },
-            { value: 'light', label: '浅色' },
-          ] as const).map((option) => (
+          {(
+            [
+              { value: 'auto', label: '系统' },
+              { value: 'dark', label: '深色' },
+              { value: 'light', label: '浅色' },
+            ] as const
+          ).map((option) => (
             <button
               key={option.value}
               type="button"
@@ -179,7 +181,10 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
       {/* Current model display */}
       <div className="pb-3 text-center text-sm text-[var(--text-soft)]">
-        当前：<span className="font-medium text-[var(--text)]">{selectedProviderDef?.name ?? '未知'}</span>
+        当前：
+        <span className="font-medium text-[var(--text)]">
+          {selectedProviderDef?.name ?? '未知'}
+        </span>
         {settingsDraft.provider.model && (
           <span className="ml-1 text-[var(--text-faint)]">/ {settingsDraft.provider.model}</span>
         )}
@@ -204,8 +209,8 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
                 className="underline text-[var(--accent)] hover:text-[var(--text)]"
               >
                 MapLeaf API
-              </a>
-              {' '}提供支持。
+              </a>{' '}
+              提供支持。
             </>
           ) : (
             selectedProviderDef.hint

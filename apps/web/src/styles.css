@@ -22,11 +22,11 @@
   --accent-strong: #3ab5e6;
   --accent-hover: rgba(88, 200, 242, 0.16);
   --highlight: #3ab5e6;
-  --danger: #F0A2B2;
+  --danger: #f0a2b2;
   --danger-soft: rgba(240, 162, 178, 0.12);
   --danger-surface: #fef2f5;
   --danger-border: #f0c8d2;
-  --warning: #F0A2B2;
+  --warning: #f0a2b2;
   --warning-soft: rgba(240, 162, 178, 0.12);
   --warning-surface: #fef2f5;
   --warning-border: #f0c8d2;
@@ -65,11 +65,11 @@
   --accent-strong: #ffb800;
   --accent-hover: rgba(255, 233, 157, 0.18);
   --highlight: #ffb800;
-  --danger: #DC2626;
+  --danger: #dc2626;
   --danger-soft: rgba(220, 38, 38, 0.14);
   --danger-surface: #1f0a0a;
   --danger-border: #4b1515;
-  --warning: #DC2626;
+  --warning: #dc2626;
   --warning-soft: rgba(220, 38, 38, 0.14);
   --warning-surface: #1f0a0a;
   --warning-border: #4b1515;

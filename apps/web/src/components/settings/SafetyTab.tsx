@@ -69,10 +69,20 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
                 setSettingsDraft((current) => ({ ...current, permissionMode: opt.value }))
               }
             >
-              <div className={cn('text-[13px] font-semibold', active ? 'text-[var(--accent)]' : 'text-[var(--text)]')}>
+              <div
+                className={cn(
+                  'text-[13px] font-semibold',
+                  active ? 'text-[var(--accent)]' : 'text-[var(--text)]',
+                )}
+              >
                 {opt.label}
               </div>
-              <div className={cn('mt-0.5 text-[11px]', opt.warn ? 'text-[var(--danger)]' : 'text-[var(--text-faint)]')}>
+              <div
+                className={cn(
+                  'mt-0.5 text-[11px]',
+                  opt.warn ? 'text-[var(--danger)]' : 'text-[var(--text-faint)]',
+                )}
+              >
                 {opt.desc}
               </div>
             </button>

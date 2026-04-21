@@ -62,11 +62,14 @@ function BatteryIcon({ level }: { level: number | null | undefined }) {
 const MESSAGE_BATCH_SIZE = 120;
 const DEVICE_STRENGTH_CAP = 200;
 
-const BUBBLE_BASE = 'max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap px-4 py-3 text-[14.5px] leading-[1.6]';
+const BUBBLE_BASE =
+  'max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap px-4 py-3 text-[14.5px] leading-[1.6]';
 const BUBBLE_ASSISTANT = `${BUBBLE_BASE} rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] text-[var(--text)]`;
 const BUBBLE_USER = `${BUBBLE_BASE} rounded-[14px] rounded-br-[4px] bg-[var(--accent)] text-[var(--button-text)]`;
-const ICON_BTN = 'h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
-const SYSTEM_MSG = 'max-w-[min(85%,480px)] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-[13px] leading-[1.35] text-[var(--text-soft)]';
+const ICON_BTN =
+  'h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
+const SYSTEM_MSG =
+  'max-w-[min(85%,480px)] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-[13px] leading-[1.35] text-[var(--text-soft)]';
 
 function summarizeAssistantContent(content: string): string {
   const prefix = 'Fake LLM 已完成工具执行：';
@@ -366,7 +369,9 @@ export function ChatPanel({
           disabled={busy || voiceMode || !deviceState.connected}
           onChange={(e) => onTextChange(e.target.value)}
           onKeyDown={handleInputKeyDown}
-          placeholder={!deviceState.connected ? '请连接蓝牙' : voiceMode ? '语音识别中…' : '输入消息…'}
+          placeholder={
+            !deviceState.connected ? '请连接蓝牙' : voiceMode ? '语音识别中…' : '输入消息…'
+          }
           className="!h-10 flex-1 rounded-full"
         />
         {!deviceState.connected ? (
@@ -391,12 +396,22 @@ export function ChatPanel({
           </Button>
         ) : (
           <Button
-            variant={busy ? 'destructive' : showVoiceAsPrimary && voiceModeAvailable ? 'secondary' : hasText ? 'default' : 'ghost'}
+            variant={
+              busy
+                ? 'destructive'
+                : showVoiceAsPrimary && voiceModeAvailable
+                  ? 'secondary'
+                  : hasText
+                    ? 'default'
+                    : 'ghost'
+            }
             size="icon"
             className="h-10 w-10 shrink-0 rounded-[10px]"
             disabled={!activeSessionId || (!hasText && !busy && !voiceModeAvailable)}
             onClick={handlePrimaryAction}
-            aria-label={busy ? '停止回复' : hasText ? '发送' : voiceModeAvailable ? '语音识别' : '发送'}
+            aria-label={
+              busy ? '停止回复' : hasText ? '发送' : voiceModeAvailable ? '语音识别' : '发送'
+            }
           >
             {showVoiceAsPrimary && voiceModeAvailable ? (
               <AudioLines className="h-4 w-4" />
