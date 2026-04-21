@@ -131,19 +131,33 @@ export function PresetSelector({
             );
           }
 
+          const active = settingsDraft.promptPresetId === preset.id;
+
           return (
-            <div key={preset.id} className="group flex items-center gap-1">
-              <PresetItem
-                name={preset.name}
-                icon="📝"
-                active={settingsDraft.promptPresetId === preset.id}
+            <div
+              key={preset.id}
+              className={cn(
+                'group flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 transition-colors',
+                active
+                  ? 'bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]'
+                  : 'hover:bg-[var(--bg-soft)]',
+              )}
+            >
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 onClick={() => selectPreset(preset.id)}
-                className="flex-1"
-              />
+              >
+                <span className="shrink-0 text-lg">📝</span>
+                <div className="min-w-0 flex-1">
+                  <div className={cn('text-sm', active && 'font-medium')}>{preset.name}</div>
+                </div>
+              </button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0 rounded-full text-[var(--text-faint)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text)]"
+                className="h-7 w-7 shrink-0 rounded-full text-[var(--text-faint)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text)]"
+                aria-label={`编辑 ${preset.name}`}
                 onClick={() => startEdit(preset)}
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -151,11 +165,15 @@ export function PresetSelector({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0 rounded-full text-[var(--text-faint)] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+                className="h-7 w-7 shrink-0 rounded-full text-[var(--text-faint)] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+                aria-label={`删除 ${preset.name}`}
                 onClick={() => onDeleteSavedPromptPreset(preset.id)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
+              <span className="flex h-7 w-4 shrink-0 items-center justify-center">
+                {active && <Check className="h-4 w-4 text-[var(--accent)]" />}
+              </span>
             </div>
           );
         })}
