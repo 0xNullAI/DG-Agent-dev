@@ -65,9 +65,9 @@ export function WaveformsPanel({
         })}
       </div>
 
-      <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] px-4 py-2.5 text-sm text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+      <label className="!flex flex-col w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] px-4 py-2.5 text-sm text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
         <Upload className="h-4 w-4" />
-        导入波形文件
+        <span>导入波形文件</span>
         <input
           type="file"
           accept=".pulse,.zip"
