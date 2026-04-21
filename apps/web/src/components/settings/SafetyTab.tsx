@@ -1,5 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { cn } from '@/lib/utils';
@@ -13,6 +12,22 @@ interface SafetyTabProps {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+const STRENGTH_MIN = 0;
+const STRENGTH_MAX = 200;
+const STRENGTH_STEP = 5;
+
+function getStrengthTone(value: number): 'normal' | 'warning' | 'danger' {
+  if (value > 150) return 'danger';
+  if (value > 100) return 'warning';
+  return 'normal';
+}
+
+function getStrengthStatus(value: number): string {
+  if (value > 150) return '危险强度';
+  if (value > 100) return '高强度';
+  return '常规';
 }
 
 export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
@@ -45,7 +60,7 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
     <div className="settings-panel-tab-content space-y-5">
       <SectionDivider label="最大强度上限" />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="strength-control-list">
         <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
         <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
       </div>
@@ -128,34 +143,49 @@ function StrengthControl({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const tone = getStrengthTone(value);
+  const inputId = `max-strength-${channel.toLowerCase()}`;
+  const strengthStyle = {
+    '--strength-value': `${(clamp(value, STRENGTH_MIN, STRENGTH_MAX) / STRENGTH_MAX) * 100}%`,
+  } as CSSProperties;
+
   return (
-    <div className="flex items-center gap-2 rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-strong)] px-3 py-2.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-[var(--accent)] text-sm font-bold text-[var(--accent)]">
-        {channel}
-      </span>
-      <div className="flex flex-1 items-center justify-end gap-0">
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-l-[8px] bg-[var(--bg-elevated)] text-[var(--text-soft)] transition-colors hover:text-[var(--text)]"
-          onClick={() => onChange(value - 5)}
-        >
-          <Minus className="h-4 w-4" />
-        </button>
+    <div className="strength-control" data-tone={tone}>
+      <div className="strength-control-header">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="strength-control-channel">{channel} 通道</span>
+          <span className="strength-control-status">{getStrengthStatus(value)}</span>
+        </div>
+
         <input
+          id={inputId}
           type="number"
-          min={0}
-          max={200}
+          min={STRENGTH_MIN}
+          max={STRENGTH_MAX}
+          step={STRENGTH_STEP}
           value={value}
-          onChange={(e) => onChange(Number(e.target.value) || 0)}
-          className="h-8 w-12 bg-[var(--bg-elevated)] text-center text-sm font-bold tabular-nums text-[var(--text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          aria-label={`${channel} 通道最大强度`}
+          onChange={(event) => onChange(Number(event.target.value) || 0)}
+          className="strength-value-input"
         />
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-r-[8px] bg-[var(--bg-elevated)] text-[var(--text-soft)] transition-colors hover:text-[var(--text)]"
-          onClick={() => onChange(value + 5)}
-        >
-          <Plus className="h-4 w-4" />
-        </button>
+      </div>
+
+      <input
+        type="range"
+        min={STRENGTH_MIN}
+        max={STRENGTH_MAX}
+        step={STRENGTH_STEP}
+        value={value}
+        aria-label={`${channel} 通道最大强度滑条`}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="strength-slider"
+        style={strengthStyle}
+      />
+
+      <div className="strength-control-scale" aria-hidden="true">
+        <span>0</span>
+        <span className="-mr-[10px]">100</span>
+        <span>200</span>
       </div>
     </div>
   );
