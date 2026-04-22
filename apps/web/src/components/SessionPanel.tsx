@@ -50,7 +50,7 @@ export function SessionPanel({
   /* ===== Collapsed ===== */
   if (collapsed) {
     return (
-      <div className="flex h-full flex-col items-center gap-[0.16rem] py-4">
+      <div className="flex h-full flex-col items-center gap-[4px] py-4">
         {onToggleCollapsed && (
           <Button
             variant="ghost"
@@ -123,7 +123,7 @@ export function SessionPanel({
               onClick={onToggleCollapsed}
               aria-label="收起侧边栏"
             >
-              <PanelLeftClose className="h-4 w-4" />
+              <PanelLeftClose className="h-4 w-4 mt-[5px]" />
             </Button>
           )}
         </div>
