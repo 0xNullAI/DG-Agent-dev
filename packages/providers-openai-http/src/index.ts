@@ -1,6 +1,6 @@
 import type {
   LlmConversationItem,
-  LlmPort,
+  LlmClient,
   LlmTurnInput,
   LlmTurnResult,
 } from '@dg-agent/contracts';
@@ -48,7 +48,7 @@ const responsesSchema = z.object({
   output_text: z.string().optional().default(''),
 });
 
-export interface OpenAiHttpLlmPortConfig {
+export interface OpenAiHttpLlmClientConfig {
   apiKey: string;
   baseUrl?: string;
   model: string;
@@ -57,10 +57,10 @@ export interface OpenAiHttpLlmPortConfig {
   useStrict?: boolean;
 }
 
-export class OpenAiHttpLlmPort implements LlmPort {
+export class OpenAiHttpLlmClient implements LlmClient {
   private readonly config: z.infer<typeof configSchema>;
 
-  constructor(inputConfig: OpenAiHttpLlmPortConfig) {
+  constructor(inputConfig: OpenAiHttpLlmClientConfig) {
     this.config = configSchema.parse(inputConfig);
   }
 

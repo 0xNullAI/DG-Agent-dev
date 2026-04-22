@@ -34,7 +34,7 @@ export interface LlmTurnResult {
   metadata?: Record<string, unknown>;
 }
 
-export interface DevicePort {
+export interface DeviceClient {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   getState(): Promise<DeviceState>;
@@ -43,7 +43,7 @@ export interface DevicePort {
   onStateChanged(listener: (state: DeviceState) => void): () => void;
 }
 
-export interface LlmPort {
+export interface LlmClient {
   runTurn(input: LlmTurnInput): Promise<LlmTurnResult>;
 }
 
@@ -55,18 +55,18 @@ export interface PermissionRequest {
   args: Record<string, unknown>;
 }
 
-export interface PermissionPort {
+export interface PermissionService {
   request(input: PermissionRequest): Promise<PermissionDecision>;
 }
 
-export interface SessionStorePort {
+export interface SessionStore {
   get(sessionId: string): Promise<SessionSnapshot | null>;
   save(session: SessionSnapshot): Promise<void>;
   list(): Promise<SessionSnapshot[]>;
   delete(sessionId: string): Promise<void>;
 }
 
-export interface SessionTraceStorePort {
+export interface SessionTraceStore {
   list(sessionId: string): Promise<RuntimeTraceEntry[]>;
   append(
     sessionId: string,
@@ -75,12 +75,12 @@ export interface SessionTraceStorePort {
   clear(sessionId: string): Promise<void>;
 }
 
-export interface WaveformLibraryPort {
+export interface WaveformLibrary {
   getById(id: string): Promise<WaveformDefinition | null>;
   list(): Promise<WaveformDefinition[]>;
 }
 
-export interface LoggerPort {
+export interface Logger {
   info(message: string, meta?: Record<string, unknown>): void;
   warn(message: string, meta?: Record<string, unknown>): void;
   error(message: string, meta?: Record<string, unknown>): void;

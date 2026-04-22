@@ -1,5 +1,5 @@
 import { createStore, del, get, set, type UseStore } from 'idb-keyval';
-import type { SessionTraceStorePort } from '@dg-agent/contracts';
+import type { SessionTraceStore } from '@dg-agent/contracts';
 import type { RuntimeTraceEntry } from '@dg-agent/core';
 import { SESSION_TRACE_KEY_PREFIX } from './browser-settings-constants.js';
 
@@ -10,7 +10,7 @@ export interface BrowserSessionTraceStoreOptions {
 
 const TRACE_LIMIT = 500;
 
-export class BrowserSessionTraceStore implements SessionTraceStorePort {
+export class BrowserSessionTraceStore implements SessionTraceStore {
   private readonly store: UseStore;
 
   constructor(options: BrowserSessionTraceStoreOptions = {}) {

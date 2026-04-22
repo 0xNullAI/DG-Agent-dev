@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DevicePort, LlmPort, PermissionPort, SessionStorePort } from '@dg-agent/contracts';
+import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/contracts';
 import { AgentRuntime } from './agent-runtime.js';
 import {
   createMessage,
@@ -13,7 +13,7 @@ import {
 } from '@dg-agent/core';
 import { createBasicWaveformLibrary } from '@dg-agent/waveforms-basic';
 
-class TestDevice implements DevicePort {
+class TestDevice implements DeviceClient {
   private state: DeviceState;
   private listeners = new Set<(state: DeviceState) => void>();
 
@@ -106,7 +106,7 @@ class TestDevice implements DevicePort {
   }
 }
 
-class TestLlm implements LlmPort {
+class TestLlm implements LlmClient {
   async runTurn() {
     return {
       assistantMessage: '准备启动 A',
@@ -126,7 +126,7 @@ class TestLlm implements LlmPort {
   }
 }
 
-class CountingDeviceToolLlm implements LlmPort {
+class CountingDeviceToolLlm implements LlmClient {
   count = 0;
 
   async runTurn() {
@@ -149,8 +149,8 @@ class CountingDeviceToolLlm implements LlmPort {
   }
 }
 
-class TwoStepLlm implements LlmPort {
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+class TwoStepLlm implements LlmClient {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
     if (!hasToolOutput) {
       return {
@@ -176,12 +176,12 @@ class TwoStepLlm implements LlmPort {
   }
 }
 
-class InspectingTwoStepLlm implements LlmPort {
+class InspectingTwoStepLlm implements LlmClient {
   readonly conversations: Array<
-    ReadonlyArray<NonNullable<Parameters<LlmPort['runTurn']>[0]['conversation']>[number]>
+    ReadonlyArray<NonNullable<Parameters<LlmClient['runTurn']>[0]['conversation']>[number]>
   > = [];
 
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     this.conversations.push([...(input.conversation ?? [])]);
 
     const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
@@ -209,10 +209,10 @@ class InspectingTwoStepLlm implements LlmPort {
   }
 }
 
-class ContextProbeLlm implements LlmPort {
+class ContextProbeLlm implements LlmClient {
   readonly conversations: string[][] = [];
 
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     this.conversations.push(
       (input.conversation ?? []).flatMap((item) =>
         item.kind === 'message' ? [`${item.role}:${item.content}`] : [],
@@ -225,7 +225,7 @@ class ContextProbeLlm implements LlmPort {
   }
 }
 
-class RepeatedAdjustLlm implements LlmPort {
+class RepeatedAdjustLlm implements LlmClient {
   async runTurn() {
     return {
       assistantMessage: '连续调整强度',
@@ -245,7 +245,7 @@ class RepeatedAdjustLlm implements LlmPort {
   }
 }
 
-class BurstOnlyLlm implements LlmPort {
+class BurstOnlyLlm implements LlmClient {
   async runTurn() {
     return {
       assistantMessage: '尝试 burst',
@@ -269,8 +269,8 @@ class ThrowingDevice extends TestDevice {
   }
 }
 
-class DuplicateAssistantLlm implements LlmPort {
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+class DuplicateAssistantLlm implements LlmClient {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
     if (!hasToolOutput) {
       return {
@@ -296,10 +296,10 @@ class DuplicateAssistantLlm implements LlmPort {
   }
 }
 
-class TimerFollowUpLlm implements LlmPort {
+class TimerFollowUpLlm implements LlmClient {
   readonly toolCountsBySource: Array<{ sourceType: string; toolCount: number }> = [];
 
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     this.toolCountsBySource.push({
       sourceType: input.context.sourceType,
       toolCount: input.tools.length,
@@ -331,10 +331,10 @@ class TimerFollowUpLlm implements LlmPort {
   }
 }
 
-class DeniedToolFollowUpLlm implements LlmPort {
+class DeniedToolFollowUpLlm implements LlmClient {
   readonly calls: Array<{ toolCount: number; message: string; syntheticDenySeen: boolean }> = [];
 
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     const syntheticDenySeen = Boolean(
       input.conversation?.some(
         (item) =>
@@ -374,8 +374,8 @@ class DeniedToolFollowUpLlm implements LlmPort {
   }
 }
 
-class AbortableLlm implements LlmPort {
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+class AbortableLlm implements LlmClient {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     input.onTextDelta?.('thinking');
 
     await new Promise<void>((resolve, reject) => {
@@ -398,25 +398,25 @@ class AbortableLlm implements LlmPort {
   }
 }
 
-class FailingLlm implements LlmPort {
+class FailingLlm implements LlmClient {
   async runTurn(): Promise<never> {
     throw new Error('Provider HTTP error 401: unauthorized');
   }
 }
 
-class TestPermission implements PermissionPort {
+class TestPermission implements PermissionService {
   async request() {
     return { type: 'approve-once' } as const;
   }
 }
 
-class DenyingPermission implements PermissionPort {
+class DenyingPermission implements PermissionService {
   async request() {
     return { type: 'deny', reason: '用户拒绝本次操作' } as const;
   }
 }
 
-class TestSessionStore implements SessionStorePort {
+class TestSessionStore implements SessionStore {
   constructor(private readonly sessions = new Map<string, TestSessionStoreEntry>()) {}
 
   async get(sessionId: string) {

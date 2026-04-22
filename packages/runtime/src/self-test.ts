@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { DevicePort, LlmPort, PermissionPort, SessionStorePort } from '@dg-agent/contracts';
+import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/contracts';
 import {
   createEmptyDeviceState,
   getBridgeOriginMetadata,
@@ -13,7 +13,7 @@ import {
 import { AgentRuntime } from './agent-runtime.js';
 import { createBasicWaveformLibrary } from '@dg-agent/waveforms-basic';
 
-class TestDevice implements DevicePort {
+class TestDevice implements DeviceClient {
   private state: DeviceState;
   private listeners = new Set<(state: DeviceState) => void>();
 
@@ -102,8 +102,8 @@ class TestDevice implements DevicePort {
   }
 }
 
-class TestLlm implements LlmPort {
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+class TestLlm implements LlmClient {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
     if (hasToolOutput) {
       return {
@@ -129,12 +129,12 @@ class TestLlm implements LlmPort {
   }
 }
 
-class InspectingTestLlm implements LlmPort {
+class InspectingTestLlm implements LlmClient {
   readonly conversations: Array<
-    ReadonlyArray<NonNullable<Parameters<LlmPort['runTurn']>[0]['conversation']>[number]>
+    ReadonlyArray<NonNullable<Parameters<LlmClient['runTurn']>[0]['conversation']>[number]>
   > = [];
 
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     this.conversations.push([...(input.conversation ?? [])]);
 
     const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
@@ -162,10 +162,10 @@ class InspectingTestLlm implements LlmPort {
   }
 }
 
-class ContextProbeLlm implements LlmPort {
+class ContextProbeLlm implements LlmClient {
   readonly conversations: string[][] = [];
 
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     this.conversations.push(
       (input.conversation ?? []).flatMap((item) =>
         item.kind === 'message' ? [`${item.role}:${item.content}`] : [],
@@ -178,13 +178,13 @@ class ContextProbeLlm implements LlmPort {
   }
 }
 
-class TestPermission implements PermissionPort {
-  async request(_input: Parameters<PermissionPort['request']>[0]) {
+class TestPermission implements PermissionService {
+  async request(_input: Parameters<PermissionService['request']>[0]) {
     return { type: 'approve-once' } as const;
   }
 }
 
-class RepeatedAdjustLlm implements LlmPort {
+class RepeatedAdjustLlm implements LlmClient {
   async runTurn() {
     return {
       assistantMessage: '连续调整强度',
@@ -204,7 +204,7 @@ class RepeatedAdjustLlm implements LlmPort {
   }
 }
 
-class BurstOnlyLlm implements LlmPort {
+class BurstOnlyLlm implements LlmClient {
   async runTurn() {
     return {
       assistantMessage: '尝试 burst',
@@ -219,8 +219,8 @@ class BurstOnlyLlm implements LlmPort {
   }
 }
 
-class LegacyStartArgsLlm implements LlmPort {
-  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+class LegacyStartArgsLlm implements LlmClient {
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
     const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
     if (hasToolOutput) {
       return {
@@ -246,7 +246,7 @@ class LegacyStartArgsLlm implements LlmPort {
   }
 }
 
-class LegacyBurstArgsLlm implements LlmPort {
+class LegacyBurstArgsLlm implements LlmClient {
   async runTurn() {
     return {
       assistantMessage: '使用老参数 burst',
@@ -261,7 +261,7 @@ class LegacyBurstArgsLlm implements LlmPort {
   }
 }
 
-class TestSessionStore implements SessionStorePort {
+class TestSessionStore implements SessionStore {
   constructor(private readonly sessions = new Map<string, TestSessionStoreEntry>()) {}
 
   async get(sessionId: string) {

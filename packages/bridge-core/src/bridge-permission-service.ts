@@ -1,14 +1,14 @@
 import type { PermissionRequest } from '@dg-agent/contracts';
 import type { PermissionDecision } from '@dg-agent/core';
 import { getBridgePlatform, requestPermissionRemote } from './bridge-utils.js';
-import type { BridgePermissionPortOptions } from './bridge-types.js';
+import type { BridgePermissionServiceOptions } from './bridge-types.js';
 
-export class BridgePermissionPort {
+export class BridgePermissionService {
   private readonly confirmTimeoutMs: number;
   private readonly grants = new Map<string, number>();
-  private readonly options: BridgePermissionPortOptions;
+  private readonly options: BridgePermissionServiceOptions;
 
-  constructor(options: BridgePermissionPortOptions) {
+  constructor(options: BridgePermissionServiceOptions) {
     this.options = options;
     this.confirmTimeoutMs = options.confirmTimeoutMs ?? 30_000;
   }

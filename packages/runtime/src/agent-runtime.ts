@@ -1,12 +1,12 @@
 import type {
-  DevicePort,
+  DeviceClient,
   LlmConversationItem,
-  LlmPort,
-  LoggerPort,
-  PermissionPort,
-  SessionStorePort,
-  SessionTraceStorePort,
-  WaveformLibraryPort,
+  LlmClient,
+  Logger,
+  PermissionService,
+  SessionStore,
+  SessionTraceStore,
+  WaveformLibrary,
 } from '@dg-agent/contracts';
 import {
   createEmptyDeviceState,
@@ -47,22 +47,23 @@ import {
   type TurnToolCallSummary,
 } from './runtime-turn-state.js';
 import { InMemorySessionTraceStore } from './session-trace.js';
-import { createDefaultToolRegistryWithDeps, ToolRegistry } from './tool-registry.js';
+import { createDefaultToolRegistryWithDeps } from './tool-registry.js';
+import type { ToolRegistry } from './tool-registry.js';
 
 export interface AgentRuntimeOptions {
-  device: DevicePort;
-  llm: LlmPort;
-  permission: PermissionPort;
+  device: DeviceClient;
+  llm: LlmClient;
+  permission: PermissionService;
   buildInstructions?: (input: {
     session: SessionSnapshot;
     context: ActionContext;
     isFirstIteration: boolean;
     turnToolCalls: readonly TurnToolCallSummary[];
   }) => string;
-  waveformLibrary?: WaveformLibraryPort;
-  sessionStore?: SessionStorePort;
-  sessionTraceStore?: SessionTraceStorePort;
-  logger?: LoggerPort;
+  waveformLibrary?: WaveformLibrary;
+  sessionStore?: SessionStore;
+  sessionTraceStore?: SessionTraceStore;
+  logger?: Logger;
   toolRegistry?: ToolRegistry;
   policyEngine?: PolicyEngine;
   toolCallConfig?: ToolCallConfigInput;
@@ -78,7 +79,7 @@ export interface SendUserMessageInput {
 
 export type { TurnToolCallSummary } from './runtime-turn-state.js';
 
-const defaultLogger: LoggerPort = {
+const defaultLogger: Logger = {
   info(message, meta) {
     console.log(message, meta ?? {});
   },
@@ -92,8 +93,8 @@ const defaultLogger: LoggerPort = {
 
 export class AgentRuntime {
   private readonly events = new InMemoryEventBus();
-  private readonly sessions: SessionStorePort;
-  private readonly traces: SessionTraceStorePort;
+  private readonly sessions: SessionStore;
+  private readonly traces: SessionTraceStore;
   private readonly queue: DeviceCommandQueue;
   private readonly toolRegistry: ToolRegistry;
   private readonly toolCallConfig: ToolCallConfig;

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 DG-Agent is a browser-based AI controller for DG-Lab Coyote (2.0 & 3.0) pulse devices. Users chat with an AI in natural language, and the AI controls the device via Web Bluetooth. The app is a React 18 SPA built with Vite and deployed to GitHub Pages.
 
-The codebase is a **monorepo** using npm workspaces with a port/adapter architecture.
+The codebase is a **monorepo** using npm workspaces with a contract/adapter architecture.
 
 ## Commands
 
@@ -29,14 +29,14 @@ The codebase is a **monorepo** using npm workspaces with a port/adapter architec
 apps/web/          — React 18 SPA (shadcn/ui + Tailwind CSS v4)
 packages/
   core/            — Shared types (DeviceState, SessionSnapshot, etc.)
-  contracts/       — Port interfaces (DevicePort, LlmPort, PermissionPort, etc.)
+  contracts/       — Contract interfaces (DeviceClient, LlmClient, PermissionService, etc.)
   api-contracts/   — REST route definitions and request/response types
   client/          — AgentClient abstraction (embedded or HTTP)
   runtime/         — Agent loop, policy engine, tool executor, turn state
   device-webbluetooth/ — Web Bluetooth adapter for Coyote v2/v3
   providers-catalog/   — Provider registry (free proxy, Qwen, DeepSeek, etc.)
   providers-openai-http/ — OpenAI-compatible HTTP/SSE transport
-  bridge-core/     — Bridge manager, message queue, permission port
+  bridge-core/     — Bridge manager, message queue, permission service
   bridge-browser/  — QQ (OneBot/NapCat) and Telegram adapters
   permissions-basic/   — Basic permission gate
   permissions-browser/ — Browser permission gate with timed grants
@@ -55,14 +55,14 @@ aliyun-fc/         — Aliyun FC serverless free proxy (CommonJS, separate)
 ### Core Data Flow
 
 ```
-Web UI → AgentClient(embedded) → Runtime → DevicePort / LlmPort / PermissionPort
+Web UI → AgentClient(embedded) → Runtime → DeviceClient / LlmClient / PermissionService
 ```
 
 The runtime's `runTurn()` loops: build instructions → call LLM → if tool calls, execute them (with permission gate + per-turn caps) → loop until text-only reply.
 
 ### Key Patterns
 
-- **Port/Adapter**: `@dg-agent/contracts` defines interfaces, implementations in `*-browser` / `*-basic` packages.
+- **Contract/Adapter**: `@dg-agent/contracts` defines interfaces, implementations in `*-browser` / `*-basic` packages.
 - **Per-channel burst quota**: Burst calls are tracked per channel (A/B), not globally.
 - **Policy engine**: Hard-coded safety caps the LLM cannot bypass (max iterations, strength limits, cold-start clamp).
 - **Model context strategy**: `last-user-turn` / `last-five-user-turns` / `full-history`.

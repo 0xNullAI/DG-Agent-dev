@@ -1,4 +1,4 @@
-import type { DevicePort } from '@dg-agent/contracts';
+import type { DeviceClient } from '@dg-agent/contracts';
 import type { DeviceCommand, DeviceCommandResult, DeviceState } from '@dg-agent/core';
 import { COYOTE_REQUEST_DEVICE_OPTIONS } from './constants.js';
 import type {
@@ -27,19 +27,19 @@ export function getWebBluetoothAvailability(
   return { supported: true };
 }
 
-export interface WebBluetoothDevicePortOptions {
+export interface WebBluetoothDeviceClientOptions {
   protocol: WebBluetoothProtocolAdapter;
   navigatorRef?: NavigatorBluetoothLike;
   requestDeviceOptions?: RequestDeviceOptionsLike;
 }
 
-export class WebBluetoothDevicePort implements DevicePort {
+export class WebBluetoothDeviceClient implements DeviceClient {
   private readonly listeners = new Set<(state: DeviceState) => void>();
   private readonly nav: NavigatorBluetoothLike | undefined;
   private device: EventTarget | null = null;
   private disconnecting = false;
 
-  constructor(private readonly options: WebBluetoothDevicePortOptions) {
+  constructor(private readonly options: WebBluetoothDeviceClientOptions) {
     this.nav =
       options.navigatorRef ??
       (typeof navigator === 'undefined'

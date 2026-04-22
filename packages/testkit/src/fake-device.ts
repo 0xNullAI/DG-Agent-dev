@@ -1,4 +1,4 @@
-import type { DevicePort } from '@dg-agent/contracts';
+import type { DeviceClient } from '@dg-agent/contracts';
 import {
   createEmptyDeviceState,
   type DeviceCommand,
@@ -6,7 +6,7 @@ import {
   type DeviceState,
 } from '@dg-agent/core';
 
-export class FakeDevicePort implements DevicePort {
+export class FakeDeviceClient implements DeviceClient {
   private state: DeviceState = createEmptyDeviceState();
   private listeners = new Set<(state: DeviceState) => void>();
 

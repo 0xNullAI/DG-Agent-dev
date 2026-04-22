@@ -1,5 +1,5 @@
 import { createStore, del, entries, get, set, type UseStore } from 'idb-keyval';
-import type { SessionStorePort } from '@dg-agent/contracts';
+import type { SessionStore } from '@dg-agent/contracts';
 import type { SessionSnapshot } from '@dg-agent/core';
 import { SESSION_KEY_PREFIX } from './browser-settings-constants.js';
 
@@ -8,7 +8,7 @@ export interface BrowserSessionStoreOptions {
   storeName?: string;
 }
 
-export class BrowserSessionStore implements SessionStorePort {
+export class BrowserSessionStore implements SessionStore {
   private readonly store: UseStore;
 
   constructor(options: BrowserSessionStoreOptions = {}) {

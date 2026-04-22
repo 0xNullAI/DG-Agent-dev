@@ -1,5 +1,5 @@
 import type { AgentClient } from '@dg-agent/client';
-import type { PermissionPort } from '@dg-agent/contracts';
+import type { PermissionService } from '@dg-agent/contracts';
 
 export type BridgePlatform = 'qq' | 'telegram';
 export type BridgePermissionMode = 'confirm' | 'allow-all';
@@ -65,9 +65,9 @@ export const DEFAULT_BRIDGE_SETTINGS: BridgeSettings = {
   },
 };
 
-export interface BridgePermissionPortOptions {
+export interface BridgePermissionServiceOptions {
   settings: BridgeSettings;
-  fallback: PermissionPort;
+  fallback: PermissionService;
   registry: BridgeAdapterRegistry;
   confirmTimeoutMs?: number;
 }

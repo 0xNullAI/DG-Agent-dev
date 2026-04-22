@@ -1,8 +1,8 @@
 import type {
-  DevicePort,
-  LoggerPort,
-  PermissionPort,
-  SessionTraceStorePort,
+  DeviceClient,
+  Logger,
+  PermissionService,
+  SessionTraceStore,
 } from '@dg-agent/contracts';
 import {
   isDeviceToolName,
@@ -13,7 +13,7 @@ import {
   type ToolCall,
   type ToolExecutionPlan,
 } from '@dg-agent/core';
-import { DeviceCommandQueue } from './device-command-queue.js';
+import type { DeviceCommandQueue } from './device-command-queue.js';
 import { throwIfAborted } from './runtime-errors.js';
 import { consumeTurnQuota, type TurnState } from './runtime-turn-state.js';
 import type { PolicyEngine } from './policy-engine.js';
@@ -33,16 +33,16 @@ export interface TimerFiredTrigger {
 }
 
 export interface RuntimeToolExecutorOptions {
-  device: DevicePort;
-  permission: PermissionPort;
+  device: DeviceClient;
+  permission: PermissionService;
   queue: DeviceCommandQueue;
   toolRegistry: ToolRegistry;
   policyEngine: PolicyEngine;
-  logger: LoggerPort;
+  logger: Logger;
   toolCallConfig: ToolCallConfig;
   emit: (event: RuntimeEvent) => void;
   enqueueTimerTrigger: (trigger: TimerFiredTrigger) => void;
-  traceStore: SessionTraceStorePort;
+  traceStore: SessionTraceStore;
 }
 
 export interface ExecuteToolCallInput {

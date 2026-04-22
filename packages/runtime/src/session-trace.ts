@@ -1,9 +1,9 @@
-import type { SessionTraceStorePort } from '@dg-agent/contracts';
+import type { SessionTraceStore } from '@dg-agent/contracts';
 import type { RuntimeTraceEntry } from '@dg-agent/core';
 
 const TRACE_LIMIT = 500;
 
-export class InMemorySessionTraceStore implements SessionTraceStorePort {
+export class InMemorySessionTraceStore implements SessionTraceStore {
   private readonly traces = new Map<string, RuntimeTraceEntry[]>();
 
   async list(sessionId: string): Promise<RuntimeTraceEntry[]> {

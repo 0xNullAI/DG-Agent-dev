@@ -11,7 +11,7 @@
 
 ### 核心链路
 
-`Web UI -> AgentClient(embedded) -> Runtime -> DevicePort / LlmPort / PermissionPort`
+`Web UI -> AgentClient(embedded) -> Runtime -> DeviceClient / LlmClient / PermissionService`
 
 当前默认链路也可以表述为：
 
@@ -140,7 +140,7 @@ packages/
   bridge-browser/          浏览器侧桥接适配器
   bridge-core/             桥接核心逻辑
   client/                  AgentClient 抽象
-  contracts/               端口定义
+  contracts/               接口契约
   core/                    领域模型与共享类型
   device-webbluetooth/     浏览器蓝牙设备适配
   permissions-basic/       基础权限策略适配

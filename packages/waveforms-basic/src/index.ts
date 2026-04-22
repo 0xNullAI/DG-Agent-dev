@@ -1,4 +1,4 @@
-import type { WaveformLibraryPort } from '@dg-agent/contracts';
+import type { WaveformLibrary } from '@dg-agent/contracts';
 import type { WaveformDefinition } from '@dg-agent/core';
 
 const BUILTIN_WAVEFORMS: WaveformDefinition[] = [
@@ -83,7 +83,7 @@ const BUILTIN_WAVEFORMS: WaveformDefinition[] = [
   },
 ];
 
-export class BasicWaveformLibrary implements WaveformLibraryPort {
+export class BasicWaveformLibrary implements WaveformLibrary {
   private readonly byId = new Map(
     BUILTIN_WAVEFORMS.map((waveform) => [waveform.id, cloneWaveform(waveform)]),
   );
@@ -98,7 +98,7 @@ export class BasicWaveformLibrary implements WaveformLibraryPort {
   }
 }
 
-export function createBasicWaveformLibrary(): WaveformLibraryPort {
+export function createBasicWaveformLibrary(): WaveformLibrary {
   return new BasicWaveformLibrary();
 }
 

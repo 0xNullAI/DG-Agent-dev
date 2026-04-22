@@ -1,4 +1,4 @@
-import type { LlmPort, LlmTurnInput, LlmTurnResult } from '@dg-agent/contracts';
+import type { LlmClient, LlmTurnInput, LlmTurnResult } from '@dg-agent/contracts';
 import type { ToolCall } from '@dg-agent/core';
 
 function nextToolCall(name: string, args: Record<string, unknown>): ToolCall {
@@ -9,7 +9,7 @@ function nextToolCall(name: string, args: Record<string, unknown>): ToolCall {
   };
 }
 
-export class FakeLlmPort implements LlmPort {
+export class FakeLlmClient implements LlmClient {
   async runTurn(input: LlmTurnInput): Promise<LlmTurnResult> {
     const latestToolOutput = [...(input.conversation ?? [])]
       .reverse()

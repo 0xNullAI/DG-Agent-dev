@@ -11,13 +11,13 @@ import {
 import {
   BridgeAdapterRegistry,
   BridgeManager,
-  BridgePermissionPort,
+  BridgePermissionService,
   MessageQueue,
   type PlatformAdapter,
 } from './index.js';
 import type { BridgePlatformMessage } from './index.js';
 
-class FakePermissionPort {
+class FakePermissionService {
   calls: PermissionRequest[] = [];
 
   async request(input: PermissionRequest) {
@@ -191,9 +191,9 @@ describe('bridge-core', () => {
     expect(order).toEqual(['start:one', 'end:one', 'start:two', 'end:two']);
   });
 
-  it('uses the fallback permission port for non-bridge sources', async () => {
-    const fallback = new FakePermissionPort();
-    const port = new BridgePermissionPort({
+  it('uses the fallback permission service for non-bridge sources', async () => {
+    const fallback = new FakePermissionService();
+    const port = new BridgePermissionService({
       settings: {
         enabled: true,
         qq: {
@@ -238,7 +238,7 @@ describe('bridge-core', () => {
     const registry = new BridgeAdapterRegistry();
     registry.register(adapter);
 
-    const port = new BridgePermissionPort({
+    const port = new BridgePermissionService({
       settings: {
         enabled: true,
         qq: {
@@ -257,7 +257,7 @@ describe('bridge-core', () => {
           permissionMode: 'confirm',
         },
       },
-      fallback: new FakePermissionPort(),
+      fallback: new FakePermissionService(),
       registry,
     });
 

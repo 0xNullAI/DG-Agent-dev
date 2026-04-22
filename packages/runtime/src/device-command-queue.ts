@@ -1,11 +1,11 @@
-import type { DevicePort } from '@dg-agent/contracts';
+import type { DeviceClient } from '@dg-agent/contracts';
 import type { DeviceCommand, DeviceCommandResult } from '@dg-agent/core';
 
 export class DeviceCommandQueue {
   private tail: Promise<void> = Promise.resolve();
   private generation = 0;
 
-  constructor(private readonly device: DevicePort) {}
+  constructor(private readonly device: DeviceClient) {}
 
   async enqueue(command: DeviceCommand): Promise<DeviceCommandResult> {
     if (command.type === 'emergencyStop') {

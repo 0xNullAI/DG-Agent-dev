@@ -1,7 +1,7 @@
-import type { PermissionPort, PermissionRequest } from '@dg-agent/contracts';
+import type { PermissionService, PermissionRequest } from '@dg-agent/contracts';
 import type { PermissionDecision } from '@dg-agent/core';
 
-export class StaticPermissionPort implements PermissionPort {
+export class StaticPermissionService implements PermissionService {
   constructor(private readonly decision: PermissionDecision) {}
 
   async request(_input: PermissionRequest): Promise<PermissionDecision> {
@@ -9,14 +9,14 @@ export class StaticPermissionPort implements PermissionPort {
   }
 }
 
-export class AllowAllPermissionPort extends StaticPermissionPort {
+export class AllowAllPermissionService extends StaticPermissionService {
   constructor() {
     super({ type: 'approve-once' });
   }
 }
 
-export class DenyAllPermissionPort extends StaticPermissionPort {
+export class DenyAllPermissionService extends StaticPermissionService {
   constructor() {
-    super({ type: 'deny', reason: 'Denied by static permission port.' });
+    super({ type: 'deny', reason: 'Denied by static permission service.' });
   }
 }

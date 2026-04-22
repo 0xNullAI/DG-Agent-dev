@@ -11,13 +11,13 @@ import {
 import {
   BridgeAdapterRegistry,
   BridgeManager,
-  BridgePermissionPort,
+  BridgePermissionService,
   MessageQueue,
   type BridgePlatformMessage,
   type PlatformAdapter,
 } from './index.js';
 
-class FakePermissionPort {
+class FakePermissionService {
   calls: PermissionRequest[] = [];
 
   async request(input: PermissionRequest) {
@@ -185,8 +185,8 @@ async function testMessageQueue(): Promise<void> {
 }
 
 async function testFallbackPermission(): Promise<void> {
-  const fallback = new FakePermissionPort();
-  const port = new BridgePermissionPort({
+  const fallback = new FakePermissionService();
+  const port = new BridgePermissionService({
     settings: {
       enabled: true,
       qq: {
@@ -231,7 +231,7 @@ async function testScopedRemotePermissionCaching(): Promise<void> {
   const registry = new BridgeAdapterRegistry();
   registry.register(adapter);
 
-  const port = new BridgePermissionPort({
+  const port = new BridgePermissionService({
     settings: {
       enabled: true,
       qq: {
@@ -250,7 +250,7 @@ async function testScopedRemotePermissionCaching(): Promise<void> {
         permissionMode: 'confirm',
       },
     },
-    fallback: new FakePermissionPort(),
+    fallback: new FakePermissionService(),
     registry,
   });
 

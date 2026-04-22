@@ -1,4 +1,4 @@
-import type { WaveformLibraryPort } from '@dg-agent/contracts';
+import type { WaveformLibrary } from '@dg-agent/contracts';
 import type { DeviceCommand, ToolCall, ToolDefinition, ToolExecutionPlan } from '@dg-agent/core';
 import { z } from 'zod';
 
@@ -65,7 +65,7 @@ export function createDefaultToolRegistry(): ToolRegistry {
 }
 
 export interface DefaultToolRegistryDeps {
-  waveformLibrary?: WaveformLibraryPort;
+  waveformLibrary?: WaveformLibrary;
 }
 
 export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps): ToolRegistry {
@@ -426,7 +426,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 }
 
 async function buildWaveformIdParameter(
-  waveformLibrary: WaveformLibraryPort | undefined,
+  waveformLibrary: WaveformLibrary | undefined,
 ): Promise<Record<string, unknown>> {
   if (!waveformLibrary) {
     return {
@@ -447,7 +447,7 @@ async function buildWaveformIdParameter(
 }
 
 async function buildWaveformDescriptionText(
-  waveformLibrary: WaveformLibraryPort | undefined,
+  waveformLibrary: WaveformLibrary | undefined,
 ): Promise<string> {
   if (!waveformLibrary) {
     return '';
@@ -475,10 +475,7 @@ function buildWaveformSummaryText(
     .join('；');
 }
 
-async function resolveWaveform(
-  waveformLibrary: WaveformLibraryPort | undefined,
-  waveformId: string,
-) {
+async function resolveWaveform(waveformLibrary: WaveformLibrary | undefined, waveformId: string) {
   if (!waveformLibrary) {
     throw new Error(`波形库不可用，无法解析 "${waveformId}"`);
   }

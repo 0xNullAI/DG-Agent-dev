@@ -1,7 +1,7 @@
-import type { SessionStorePort } from '@dg-agent/contracts';
+import type { SessionStore } from '@dg-agent/contracts';
 import type { SessionSnapshot } from '@dg-agent/core';
 
-export class InMemorySessionStore implements SessionStorePort {
+export class InMemorySessionStore implements SessionStore {
   private readonly sessions = new Map<string, SessionSnapshot>();
 
   async get(sessionId: string): Promise<SessionSnapshot | null> {

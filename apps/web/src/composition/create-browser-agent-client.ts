@@ -1,23 +1,23 @@
 import { createEmbeddedAgentClient, type AgentClient } from '@dg-agent/client';
 import type {
-  DevicePort,
-  LlmPort,
+  DeviceClient,
+  LlmClient,
   LlmTurnInput,
   LlmTurnResult,
-  PermissionPort,
-  SessionStorePort,
-  SessionTraceStorePort,
-  WaveformLibraryPort,
+  PermissionService,
+  SessionStore,
+  SessionTraceStore,
+  WaveformLibrary,
 } from '@dg-agent/contracts';
 import { getWebBluetoothAvailability } from '@dg-agent/device-webbluetooth';
-import { BrowserPermissionPort } from '@dg-agent/permissions-browser';
+import { BrowserPermissionService } from '@dg-agent/permissions-browser';
 import { resolveProviderRuntimeSettings } from '@dg-agent/providers-catalog';
-import { OpenAiHttpLlmPort } from '@dg-agent/providers-openai-http';
+import { OpenAiHttpLlmClient } from '@dg-agent/providers-openai-http';
 import { PolicyEngine, createDefaultPolicyRules } from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { createBuildBrowserInstructions } from './build-browser-instructions.js';
 
-class UnavailableLlmPort implements LlmPort {
+class UnavailableLlmClient implements LlmClient {
   constructor(private readonly message: string) {}
 
   async runTurn(_input: LlmTurnInput): Promise<LlmTurnResult> {
@@ -27,11 +27,11 @@ class UnavailableLlmPort implements LlmPort {
 
 export interface CreateBrowserAgentClientOptions {
   settings: BrowserAppSettings;
-  device: DevicePort;
-  sessionStore?: SessionStorePort;
-  sessionTraceStore?: SessionTraceStorePort;
-  waveformLibrary: WaveformLibraryPort;
-  permissionPort?: PermissionPort;
+  device: DeviceClient;
+  sessionStore?: SessionStore;
+  sessionTraceStore?: SessionTraceStore;
+  waveformLibrary: WaveformLibrary;
+  permissionService?: PermissionService;
 }
 
 export function createBrowserAgentClient(options: CreateBrowserAgentClientOptions): AgentClient {
@@ -41,14 +41,14 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
 
   const llm =
     provider.browserSupported && provider.apiKey
-      ? new OpenAiHttpLlmPort({
+      ? new OpenAiHttpLlmClient({
           apiKey: provider.apiKey,
           baseUrl: provider.baseUrl,
           model: provider.model,
           endpoint: provider.endpoint,
           useStrict: provider.useStrict,
         })
-      : new UnavailableLlmPort(
+      : new UnavailableLlmClient(
           provider.browserSupported
             ? '当前模型服务还没有配置完成，请先在设置里选择服务提供方并补全凭证'
             : `当前服务提供方“${config.provider.providerId}”不支持浏览器直连，请改用可在浏览器运行的服务`,
@@ -58,8 +58,8 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
     device: options.device,
     llm,
     permission:
-      options.permissionPort ??
-      new BrowserPermissionPort({
+      options.permissionService ??
+      new BrowserPermissionService({
         mode: settings.permissionMode,
       }),
     policyEngine: new PolicyEngine(

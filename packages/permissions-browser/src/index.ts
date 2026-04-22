@@ -1,11 +1,11 @@
-import type { PermissionPort, PermissionRequest } from '@dg-agent/contracts';
+import type { PermissionService, PermissionRequest } from '@dg-agent/contracts';
 import type { PermissionDecision } from '@dg-agent/core';
 
 export type BrowserPermissionMode = 'confirm' | 'timed' | 'allow-all';
 
 export const TIMED_PERMISSION_WINDOW_MS = 5 * 60 * 1000;
 
-export interface BrowserPermissionPortOptions {
+export interface BrowserPermissionServiceOptions {
   mode: BrowserPermissionMode;
   timedGrantExpiresAt?: number;
   confirmFn?: (message: string) => boolean;
@@ -14,7 +14,7 @@ export interface BrowserPermissionPortOptions {
   ) => Promise<PermissionDecision | boolean> | PermissionDecision | boolean;
 }
 
-export class BrowserPermissionPort implements PermissionPort {
+export class BrowserPermissionService implements PermissionService {
   private readonly confirmFn: (message: string) => boolean;
   private readonly requestFn?: (
     input: PermissionRequest,
@@ -22,7 +22,7 @@ export class BrowserPermissionPort implements PermissionPort {
   private timedGrantExpiresAt = 0;
   private readonly grants = new Map<string, number>();
 
-  constructor(private readonly options: BrowserPermissionPortOptions) {
+  constructor(private readonly options: BrowserPermissionServiceOptions) {
     this.confirmFn =
       options.confirmFn ??
       ((message) => {

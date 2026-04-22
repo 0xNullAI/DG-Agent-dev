@@ -8,12 +8,12 @@ import { createBrowserBridgeAdapters } from '@dg-agent/bridge-browser';
 import {
   BridgeAdapterRegistry,
   BridgeManager,
-  BridgePermissionPort,
+  BridgePermissionService,
   type MessageOrigin,
 } from '@dg-agent/bridge-core';
-import { CoyoteProtocolAdapter, WebBluetoothDevicePort } from '@dg-agent/device-webbluetooth';
+import { CoyoteProtocolAdapter, WebBluetoothDeviceClient } from '@dg-agent/device-webbluetooth';
 import type { PermissionDecision } from '@dg-agent/core';
-import { BrowserPermissionPort } from '@dg-agent/permissions-browser';
+import { BrowserPermissionService } from '@dg-agent/permissions-browser';
 import {
   BrowserSessionStore,
   BrowserSessionTraceStore,
@@ -49,7 +49,7 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
   const deviceProtocol = useMemo(() => new CoyoteProtocolAdapter(), []);
   const device = useMemo(
     () =>
-      new WebBluetoothDevicePort({
+      new WebBluetoothDeviceClient({
         protocol: deviceProtocol,
       }),
     [deviceProtocol],
@@ -106,9 +106,9 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
     [settings.voice.mode],
   );
 
-  const localPermissionPort = useMemo(
+  const localPermissionService = useMemo(
     () =>
-      new BrowserPermissionPort({
+      new BrowserPermissionService({
         mode: settings.permissionMode,
         timedGrantExpiresAt: settings.permissionModeExpiresAt,
         requestFn: (input) =>
@@ -126,14 +126,14 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
       }),
     [settings.permissionMode, settings.permissionModeExpiresAt, setPendingPermission],
   );
-  const bridgePermissionPort = useMemo(
+  const bridgePermissionService = useMemo(
     () =>
-      new BridgePermissionPort({
+      new BridgePermissionService({
         settings: settings.bridge,
-        fallback: localPermissionPort,
+        fallback: localPermissionService,
         registry: bridgeRegistry,
       }),
-    [bridgeRegistry, localPermissionPort, settings.bridge],
+    [bridgeRegistry, localPermissionService, settings.bridge],
   );
   const client = useMemo(
     () =>
@@ -143,9 +143,9 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
         sessionStore,
         sessionTraceStore,
         waveformLibrary,
-        permissionPort: bridgePermissionPort,
+        permissionService: bridgePermissionService,
       }),
-    [bridgePermissionPort, device, sessionStore, sessionTraceStore, settings, waveformLibrary],
+    [bridgePermissionService, device, sessionStore, sessionTraceStore, settings, waveformLibrary],
   );
   const modes = useMemo(() => describeBrowserModes(settings), [settings]);
   const bridgeManager = useMemo(
@@ -161,9 +161,9 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
 
   const resetPermissionGrants = useMemo(
     () => () => {
-      bridgePermissionPort.clearGrants();
+      bridgePermissionService.clearGrants();
     },
-    [bridgePermissionPort],
+    [bridgePermissionService],
   );
 
   return {
