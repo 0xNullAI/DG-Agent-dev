@@ -310,6 +310,15 @@
   color: var(--accent);
 }
 
+.session-action-label {
+  margin-top: -0.1em;
+  margin-left: 0.25rem;
+}
+
+.sidebar-icon-label {
+  margin-top: -0.1em;
+}
+
 .session-panel-actions {
   display: flex;
   align-items: center;

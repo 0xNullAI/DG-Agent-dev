@@ -688,7 +688,7 @@ export function App() {
                     }}
                   >
                     <Icon className="settings-nav-icon" />
-                    <span>{item.label}</span>
+                    <span className="sidebar-icon-label">{item.label}</span>
                   </button>
                 );
               })}
@@ -703,7 +703,7 @@ export function App() {
             onClick={() => setResetSettingsDialogOpen(true)}
           >
             <RotateCcw className="h-4 w-4 shrink-0" />
-            恢复默认
+            <span className="sidebar-icon-label">恢复默认</span>
           </Button>
         </div>
       </aside>
@@ -746,7 +746,7 @@ export function App() {
                       }}
                     >
                       <Icon className="settings-mobile-directory-icon" />
-                      <span>{item.label}</span>
+                      <span className="sidebar-icon-label">{item.label}</span>
                     </button>
                   );
                 })}
@@ -756,7 +756,7 @@ export function App() {
           <div className="settings-mobile-directory-footer">
             <button type="button" onClick={() => setResetSettingsDialogOpen(true)}>
               <RotateCcw className="h-4 w-4" />
-              <span>恢复默认</span>
+              <span className="sidebar-icon-label">恢复默认</span>
             </button>
           </div>
         </section>
