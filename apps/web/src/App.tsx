@@ -753,6 +753,12 @@ export function App() {
               </div>
             ))}
           </nav>
+          <div className="settings-mobile-directory-footer">
+            <button type="button" onClick={() => setResetSettingsDialogOpen(true)}>
+              <RotateCcw className="h-4 w-4" />
+              <span>恢复默认</span>
+            </button>
+          </div>
         </section>
 
         <header className="settings-mobile-header lg:hidden">
@@ -762,7 +768,6 @@ export function App() {
             onClick={() => setSettingsMobileNavOpen(true)}
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>设置</span>
           </button>
           <span>{currentItem.label}</span>
         </header>

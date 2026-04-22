@@ -21,9 +21,9 @@ interface SessionPanelProps {
 
 const SESSION_BATCH_SIZE = 60;
 const ICON_BTN =
-  'h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
+  'session-action-icon h-9 w-9 rounded-[7px] border border-transparent text-[var(--text-soft)] hover:border-[var(--surface-border)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
 const SIDEBAR_BTN =
-  'h-9 w-full justify-start gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
+  'session-action-button h-[2.35rem] w-full justify-start gap-2.5 rounded-[7px] border border-transparent px-2 text-[13px] font-medium text-[var(--text-soft)] hover:border-[var(--surface-border)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
 
 export function SessionPanel({
   savedSessions,
@@ -50,7 +50,7 @@ export function SessionPanel({
   /* ===== Collapsed ===== */
   if (collapsed) {
     return (
-      <div className="flex h-full flex-col items-center gap-1 py-4">
+      <div className="flex h-full flex-col items-center gap-[0.16rem] py-4">
         {onToggleCollapsed && (
           <Button
             variant="ghost"
@@ -130,7 +130,7 @@ export function SessionPanel({
       )}
 
       {/* Action buttons — each on its own row */}
-      <div className="shrink-0 space-y-0.5 px-3 pb-3 mt-1">
+      <div className="shrink-0 space-y-[0.16rem] px-3 pb-3 mt-1">
         {onCreateSession && (
           <Button variant="ghost" className={SIDEBAR_BTN} onClick={onCreateSession}>
             <SquarePen className="h-4 w-4 shrink-0" />

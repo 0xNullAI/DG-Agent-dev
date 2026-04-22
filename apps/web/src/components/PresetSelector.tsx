@@ -137,7 +137,7 @@ export function PresetSelector({
               <div
                 key={preset.id}
                 className={cn(
-                  'group flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 transition-colors',
+                  'group flex w-full min-w-0 items-center gap-2 rounded-[10px] px-3 py-2.5 transition-colors',
                   active
                     ? 'bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]'
                     : 'hover:bg-[var(--bg-soft)]',

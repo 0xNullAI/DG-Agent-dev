@@ -128,7 +128,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
         <div className="settings-row-card grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3">
           <h3 className="settings-card-legend">基本设置</h3>
           <SettingLabel>主题模式</SettingLabel>
-          <div className="text-xs flex rounded-full bg-[var(--bg-strong)] p-0.5">
+          <div className="settings-compact-control text-xs flex rounded-full bg-[var(--bg-strong)] p-0.5">
             {(
               [
                 { value: 'auto', label: '系统' },
@@ -157,7 +157,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
           </div>
 
           <SettingLabel>上下文策略</SettingLabel>
-          <div className="scale-90">
+          <div className="settings-compact-control">
             <SettingSelect
               value={settingsDraft.modelContextStrategy}
               onValueChange={(value) =>
