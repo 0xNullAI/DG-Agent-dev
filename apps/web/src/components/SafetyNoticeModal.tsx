@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import styles from './SafetyNoticeModal.module.css';
 
 const SAFETY_NOTICE_SECTIONS = [
   {
@@ -60,39 +61,39 @@ export function SafetyNoticeModal({ onAccept, countdownSeconds = 10 }: SafetyNot
   }, [remainingSeconds]);
 
   return (
-    <section className="permission-modal-backdrop safety-notice-backdrop">
+    <section className={styles.backdrop}>
       <article
-        className="permission-modal safety-notice-modal"
+        className={styles.modal}
         role="dialog"
         aria-modal="true"
         aria-labelledby="safety-notice-title"
         aria-describedby="safety-notice-summary"
       >
-        <header className="safety-notice-header">
-          <div className="eyebrow safety-notice-eyebrow">DGLAB 安全确认</div>
+        <header className={styles.header}>
+          <div className="eyebrow">DGLAB 安全确认</div>
           <h2 id="safety-notice-title">使用前安全确认</h2>
-          <p id="safety-notice-summary" className="safety-notice-summary">
+          <p id="safety-notice-summary" className={styles.summary}>
             继续之前，请确认你已经理解设备控制、AI
             输出以及浏览器运行环境带来的风险，并能够随时主动停止。
           </p>
         </header>
 
-        <div className="safety-notice-callout">
+        <div className={styles.callout}>
           <strong>AI 不是安全控制器。</strong>
           <span>模型可能误判，浏览器、蓝牙或桥接链路也可能卡顿、重试、断连或产生非预期行为。</span>
           <span>请始终把“立刻停止输出”和“立刻断开设备”放在最高优先级。</span>
         </div>
 
-        <div className="safety-notice-grid">
+        <div className={styles.grid}>
           {SAFETY_NOTICE_SECTIONS.map((section) => (
-            <section key={section.title} className="safety-notice-section">
-              <div className="safety-notice-section-head">
+            <section key={section.title} className={styles.section}>
+              <div className={styles.sectionHead}>
                 <h3>{section.title}</h3>
               </div>
-              <ul className="safety-notice-list">
+              <ul className={styles.list}>
                 {section.items.map((item, index) => (
-                  <li key={item} className="safety-notice-item">
-                    <span className="safety-notice-item-index">{index + 1}</span>
+                  <li key={item} className={styles.item}>
+                    <span className={styles.itemIndex}>{index + 1}</span>
                     <span>{item}</span>
                   </li>
                 ))}
@@ -101,10 +102,10 @@ export function SafetyNoticeModal({ onAccept, countdownSeconds = 10 }: SafetyNot
           ))}
         </div>
 
-        <footer className="safety-notice-footer">
-          <div className="safety-notice-footer-copy">
+        <footer className={styles.footer}>
+          <div className={styles.footerCopy}>
             <strong>继续即表示你已阅读并愿意自行承担使用风险。</strong>
-            <label className="safety-notice-checkbox">
+            <label className={styles.checkbox}>
               <Checkbox
                 checked={dontShowAgain}
                 onCheckedChange={(checked) => setDontShowAgain(Boolean(checked))}

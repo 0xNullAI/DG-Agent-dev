@@ -4,6 +4,7 @@ import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { cn } from '@/lib/utils';
 import { SectionDivider } from './SectionDivider.js';
 import { SettingToggle } from './SettingToggle.js';
+import styles from './SafetyTab.module.css';
 
 interface SafetyTabProps {
   settingsDraft: BrowserAppSettings;
@@ -60,7 +61,7 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
     <div className="settings-panel-tab-content space-y-5">
       <SectionDivider label="最大强度上限" />
 
-      <div className="strength-control-list">
+      <div className={styles.strengthControlList}>
         <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
         <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
       </div>
@@ -150,11 +151,11 @@ function StrengthControl({
   } as CSSProperties;
 
   return (
-    <div className="strength-control" data-tone={tone}>
-      <div className="strength-control-header">
+    <div className={styles.strengthControl} data-tone={tone}>
+      <div className={styles.strengthControlHeader}>
         <div className="flex min-w-0 items-center gap-2">
-          <span className="strength-control-channel">{channel} 通道</span>
-          <span className="strength-control-status">{getStrengthStatus(value)}</span>
+          <span className={styles.strengthControlChannel}>{channel} 通道</span>
+          <span className={styles.strengthControlStatus}>{getStrengthStatus(value)}</span>
         </div>
 
         <input
@@ -166,7 +167,7 @@ function StrengthControl({
           value={value}
           aria-label={`${channel} 通道最大强度`}
           onChange={(event) => onChange(Number(event.target.value) || 0)}
-          className="strength-value-input"
+          className={styles.strengthValueInput}
         />
       </div>
 
@@ -178,11 +179,11 @@ function StrengthControl({
         value={value}
         aria-label={`${channel} 通道最大强度滑条`}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="strength-slider"
+        className={styles.strengthSlider}
         style={strengthStyle}
       />
 
-      <div className="strength-control-scale" aria-hidden="true">
+      <div className={styles.strengthControlScale} aria-hidden="true">
         <span>0</span>
         <span className="-mr-[10px]">100</span>
         <span>200</span>
