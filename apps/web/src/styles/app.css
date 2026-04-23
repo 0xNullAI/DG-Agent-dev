@@ -1084,6 +1084,118 @@
   line-height: 1.25rem;
 }
 
+.bridge-connector-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.bridge-connector-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.bridge-connector-row:hover,
+.bridge-connector-row.active {
+  border-color: var(--surface-border-strong);
+  background: var(--bg-soft);
+}
+
+.bridge-connector-main {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.bridge-connector-icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  color: var(--text-faint);
+}
+
+.bridge-connector-row.active .bridge-connector-icon,
+.bridge-connector-row.enabled .bridge-connector-icon {
+  color: var(--accent);
+}
+
+.bridge-connector-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.bridge-connector-copy > span {
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.bridge-connector-copy small,
+.bridge-config-status {
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.bridge-connector-status {
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.bridge-connector-status.enabled {
+  color: var(--accent);
+}
+
+.bridge-connector-switch {
+  position: relative;
+  display: inline-flex;
+  width: 2.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 9999px;
+  background: var(--surface-border-strong);
+  transition: background-color 160ms ease;
+}
+
+.bridge-connector-switch.enabled {
+  background: var(--accent);
+}
+
+.bridge-connector-switch span {
+  width: 1rem;
+  height: 1rem;
+  margin-left: 0.125rem;
+  border-radius: 9999px;
+  background: #fff;
+  transition: transform 160ms ease;
+}
+
+.bridge-connector-switch.enabled span {
+  transform: translateX(1rem);
+}
+
+.bridge-config-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
 .settings .saved-prompt-item {
   border-radius: var(--radius-sm);
 }
@@ -1213,6 +1325,14 @@
 
   .settings-workspace .settings-row-card.grid-cols-\[1fr_auto\] {
     grid-template-columns: 1fr;
+  }
+
+  .bridge-connector-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .bridge-connector-status {
+    display: none;
   }
 
   .settings-workspace-content {
