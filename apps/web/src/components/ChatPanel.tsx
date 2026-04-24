@@ -320,7 +320,7 @@ export function ChatPanel({
               <div className="relative mb-2" ref={sceneDropdownRef}>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1.5 rounded-[8px] px-2.5 py-1.5 text-[13px] text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                  className="!text-sm inline-flex items-center gap-1.5 rounded-[8px] px-2.5 py-1.5 text-[13px] text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
                   onClick={() => setSceneDropdownOpen((v) => !v)}
                 >
                   <span>{activePreset?.icon ?? '📝'}</span>
