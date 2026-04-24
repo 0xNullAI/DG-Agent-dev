@@ -192,6 +192,7 @@ export function ChatPanel({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setVisibleMessageCount(MESSAGE_BATCH_SIZE);
+    setLeaving(false);
   }, [activeSessionId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
