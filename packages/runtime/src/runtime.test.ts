@@ -1046,9 +1046,13 @@ describe('AgentRuntime', () => {
     });
 
     const executed = events.find(
-      (event) => event.type === 'device-command-executed' && event.command.type === 'burst',
+      (
+        event,
+      ): event is Extract<RuntimeEvent, { type: 'device-command-executed' }> & {
+        command: Extract<DeviceCommand, { type: 'burst' }>;
+      } => event.type === 'device-command-executed' && event.command.type === 'burst',
     );
-    expect(executed && 'command' in executed ? executed.command.durationMs : null).toBe(1200);
+    expect(executed?.command.durationMs ?? null).toBe(1200);
   });
 
   it('uses ephemeral timer triggers, keeps them out of history, and disables tools on system turns', async () => {

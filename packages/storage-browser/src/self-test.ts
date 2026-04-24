@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import assert from 'node:assert/strict';
 import { createProviderSettings } from '@dg-agent/providers-catalog';
 import { BrowserAppSettingsStore } from './index.js';

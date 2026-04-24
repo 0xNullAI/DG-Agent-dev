@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import assert from 'node:assert/strict';
 import {
   FREE_TRIAL_PROXY_URL,

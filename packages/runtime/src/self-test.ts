@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import assert from 'node:assert/strict';
 import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/contracts';
 import { createDefaultPolicyRules } from './default-policies.js';
@@ -690,14 +692,13 @@ async function main(): Promise<void> {
     },
   });
   const burstDurationEvent = burstDurationEvents.find(
-    (event) => event.type === 'device-command-executed' && event.command.type === 'burst',
+    (
+      event,
+    ): event is Extract<RuntimeEvent, { type: 'device-command-executed' }> & {
+      command: Extract<DeviceCommand, { type: 'burst' }>;
+    } => event.type === 'device-command-executed' && event.command.type === 'burst',
   );
-  assert.equal(
-    burstDurationEvent && 'command' in burstDurationEvent
-      ? burstDurationEvent.command.durationMs
-      : null,
-    1200,
-  );
+  assert.equal(burstDurationEvent?.command.durationMs ?? null, 1200);
 
   const legacyStartRuntime = new AgentRuntime({
     device: new TestDevice(),

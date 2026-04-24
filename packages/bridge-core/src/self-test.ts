@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import assert from 'node:assert/strict';
 import type { AgentClient } from '@dg-agent/client';
 import type { PermissionRequest } from '@dg-agent/contracts';
