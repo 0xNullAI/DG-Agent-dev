@@ -509,7 +509,7 @@ export function ChatPanel({
             </div>
           </div>
 
-          <div className="mx-auto flex w-full max-w-[800px] shrink-0 items-center gap-2 px-3 pb-1 sm:px-6">
+          <div className="mx-auto flex w-full max-w-[800px] shrink-0 items-center gap-2 px-3 pb-1 sm:px-6 mt-3">
             <Input
               ref={inputRef}
               type="text"
