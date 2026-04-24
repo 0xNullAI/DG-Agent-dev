@@ -24,6 +24,7 @@ const chatResponseSchema = z.object({
         message: z
           .object({
             content: z.union([z.string(), z.null()]).optional(),
+            reasoning_content: z.union([z.string(), z.null()]).optional(),
             tool_calls: z
               .array(
                 z.object({
@@ -87,6 +88,7 @@ export class OpenAiHttpLlmClient implements LlmClient {
         messages: toChatMessages(
           input.conversation ?? toConversationItems(input.session),
           input.instructions,
+          { includeReasoningContent: shouldIncludeReasoningContent(this.config) },
         ),
         tools:
           input.tools.length > 0
@@ -115,6 +117,7 @@ export class OpenAiHttpLlmClient implements LlmClient {
     const message = firstChoice.message;
     return {
       assistantMessage: normalizeContent(message.content),
+      reasoningContent: normalizeOptionalContent(message.reasoning_content),
       toolCalls: (message.tool_calls ?? []).map(toToolCall),
     };
   }
@@ -261,6 +264,7 @@ async function parseChatCompletionsStream(
   const decoder = new TextDecoder();
   let buffer = '';
   let streamedText = '';
+  let streamedReasoning = '';
   const fnCallSlots: Record<number, { id: string; name: string; arguments: string }> = {};
 
   while (true) {
@@ -285,6 +289,10 @@ async function parseChatCompletionsStream(
       const choice = event.choices?.[0];
       const delta = choice?.delta;
       if (!delta) continue;
+
+      if (typeof delta.reasoning_content === 'string' && delta.reasoning_content) {
+        streamedReasoning += delta.reasoning_content;
+      }
 
       if (typeof delta.content === 'string' && delta.content) {
         streamedText += delta.content;
@@ -321,6 +329,7 @@ async function parseChatCompletionsStream(
 
   return {
     assistantMessage: streamedText,
+    reasoningContent: streamedReasoning || undefined,
     toolCalls: Object.values(fnCallSlots).map((toolCall) => ({
       id: toolCall.id,
       name: toolCall.name,
@@ -332,6 +341,7 @@ async function parseChatCompletionsStream(
 function toChatMessages(
   conversation: LlmConversationItem[],
   instructions: string,
+  options: { includeReasoningContent: boolean },
 ): Array<Record<string, unknown>> {
   const messages: Array<Record<string, unknown>> = [];
 
@@ -344,10 +354,26 @@ function toChatMessages(
 
   for (const item of conversation) {
     if (item.kind === 'message') {
-      messages.push({
+      const message: Record<string, unknown> = {
         role: item.role,
         content: item.content,
-      });
+      };
+      if (item.role === 'assistant') {
+        if (item.reasoningContent && options.includeReasoningContent) {
+          message.reasoning_content = item.reasoningContent;
+        }
+        if (item.toolCalls?.length) {
+          message.tool_calls = item.toolCalls.map((toolCall) => ({
+            id: toolCall.id,
+            type: 'function',
+            function: {
+              name: toolCall.name,
+              arguments: serializeToolCallArgs(toolCall.args),
+            },
+          }));
+        }
+      }
+      messages.push(message);
       continue;
     }
 
@@ -380,28 +406,47 @@ function toChatMessages(
 }
 
 function toResponsesInput(conversation: LlmConversationItem[]): Array<Record<string, unknown>> {
-  return conversation.map((item) => {
+  return conversation.flatMap((item) => {
     if (item.kind === 'message') {
-      return {
-        role: item.role,
-        content: item.content,
-      };
+      const items: Array<Record<string, unknown>> = [
+        {
+          role: item.role,
+          content: item.content,
+        },
+      ];
+
+      if (item.role === 'assistant' && item.toolCalls?.length) {
+        items.push(
+          ...item.toolCalls.map((toolCall) => ({
+            type: 'function_call',
+            call_id: toolCall.id,
+            name: toolCall.name,
+            arguments: serializeToolCallArgs(toolCall.args),
+          })),
+        );
+      }
+
+      return items;
     }
 
     if (item.kind === 'function_call') {
-      return {
-        type: 'function_call',
-        call_id: item.callId,
-        name: item.name,
-        arguments: item.argumentsJson,
-      };
+      return [
+        {
+          type: 'function_call',
+          call_id: item.callId,
+          name: item.name,
+          arguments: item.argumentsJson,
+        },
+      ];
     }
 
-    return {
-      type: 'function_call_output',
-      call_id: item.callId,
-      output: item.output,
-    };
+    return [
+      {
+        type: 'function_call_output',
+        call_id: item.callId,
+        output: item.output,
+      },
+    ];
   });
 }
 
@@ -442,6 +487,24 @@ function validateApiKey(apiKey: string): void {
 
 function normalizeContent(content: string | null | undefined): string {
   return content ?? '';
+}
+
+function normalizeOptionalContent(content: string | null | undefined): string | undefined {
+  return content ?? undefined;
+}
+
+function shouldIncludeReasoningContent(config: z.infer<typeof configSchema>): boolean {
+  const normalizedModel = config.model.trim().toLowerCase();
+  const normalizedBaseUrl = config.baseUrl.trim().toLowerCase();
+  return normalizedModel.includes('deepseek') || normalizedBaseUrl.includes('deepseek');
+}
+
+function serializeToolCallArgs(args: Record<string, unknown>): string {
+  try {
+    return JSON.stringify(args);
+  } catch {
+    return '{}';
+  }
 }
 
 function toToolCall(toolCall: {
@@ -564,6 +627,8 @@ function toConversationItems(session: SessionSnapshot): LlmConversationItem[] {
     kind: 'message',
     role: item.role,
     content: item.content,
+    reasoningContent: item.reasoningContent,
+    toolCalls: item.toolCalls,
   }));
 }
 

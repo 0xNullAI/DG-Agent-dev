@@ -1,5 +1,5 @@
 import type { LlmConversationItem } from '@dg-agent/contracts';
-import type { ModelContextStrategy, SessionSnapshot } from '@dg-agent/core';
+import type { ModelContextStrategy, SessionSnapshot, ToolCall } from '@dg-agent/core';
 import type { ToolCallConfig } from './tool-call-config.js';
 
 export interface TurnState {
@@ -31,14 +31,19 @@ export function buildConversationItems(
   currentInput?: LlmConversationItem | null,
   modelContextStrategy: ModelContextStrategy = 'last-user-turn',
 ): LlmConversationItem[] {
+  const persistedMessages = selectModelContextMessages(
+    session.messages,
+    modelContextStrategy,
+  ).filter((message) => shouldIncludePersistedMessage(message, turnState));
+
   return [
-    ...selectModelContextMessages(session.messages, modelContextStrategy).map<LlmConversationItem>(
-      (message) => ({
-        kind: 'message',
-        role: message.role,
-        content: message.content,
-      }),
-    ),
+    ...persistedMessages.map<LlmConversationItem>((message) => ({
+      kind: 'message',
+      role: message.role,
+      content: message.content,
+      reasoningContent: message.reasoningContent,
+      toolCalls: message.toolCalls,
+    })),
     ...(currentInput ? [currentInput] : []),
     ...turnState.workingItems,
   ];
@@ -53,16 +58,25 @@ export function safeStringify(value: Record<string, unknown>): string {
 }
 
 export function collectTurnToolCalls(turnState: TurnState): TurnToolCallSummary[] {
-  return turnState.workingItems.flatMap((item) =>
-    item.kind === 'function_call'
-      ? [
-          {
-            name: item.name,
-            argsJson: item.argumentsJson,
-          },
-        ]
-      : [],
-  );
+  return turnState.workingItems.flatMap((item) => {
+    if (item.kind === 'function_call') {
+      return [
+        {
+          name: item.name,
+          argsJson: item.argumentsJson,
+        },
+      ];
+    }
+
+    if (item.kind === 'message' && item.role === 'assistant' && item.toolCalls?.length) {
+      return item.toolCalls.map((toolCall) => ({
+        name: toolCall.name,
+        argsJson: safeStringify(toolCall.args),
+      }));
+    }
+
+    return [];
+  });
 }
 
 export function consumeTurnQuota(
@@ -159,4 +173,41 @@ function shouldSkipModelContextMessage(message: SessionSnapshot['messages'][numb
     'AI 服务暂时不可用，请稍后重试',
     '当前模型服务还没有配置完成，请先在设置里选择服务提供方并补全凭证',
   ].includes(content);
+}
+
+function shouldIncludePersistedMessage(
+  message: SessionSnapshot['messages'][number],
+  turnState: TurnState,
+): boolean {
+  if (message.role !== 'assistant' || !message.toolCalls?.length) {
+    return true;
+  }
+
+  return !turnState.workingItems.some(
+    (item) =>
+      item.kind === 'message' &&
+      item.role === 'assistant' &&
+      item.content.trim() === message.content.trim() &&
+      (item.reasoningContent?.trim() ?? '') === (message.reasoningContent?.trim() ?? '') &&
+      sameToolCallSequence(item.toolCalls, message.toolCalls),
+  );
+}
+
+function sameToolCallSequence(left?: ToolCall[], right?: ToolCall[]): boolean {
+  const leftCalls = Array.isArray(left) ? left : [];
+  const rightCalls = Array.isArray(right) ? right : [];
+
+  if (leftCalls.length !== rightCalls.length) {
+    return false;
+  }
+
+  return leftCalls.every((toolCall, index) => {
+    const other = rightCalls[index];
+    return (
+      other &&
+      toolCall.id === other.id &&
+      toolCall.name === other.name &&
+      safeStringify(toolCall.args) === safeStringify(other.args)
+    );
+  });
 }

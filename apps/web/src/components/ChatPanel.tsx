@@ -632,7 +632,7 @@ function buildRenderableTimeline(
   traceFeed: TraceFeedItem[],
 ): TimelineItem[] {
   const items: TimelineItem[] = [
-    ...messages.map((message) => ({
+    ...messages.filter(shouldRenderTimelineMessage).map((message) => ({
       ...message,
       kind: 'message' as const,
     })),
@@ -645,4 +645,12 @@ function buildRenderableTimeline(
   ];
 
   return items.sort((left, right) => left.createdAt - right.createdAt);
+}
+
+function shouldRenderTimelineMessage(message: SessionSnapshot['messages'][number]): boolean {
+  if (message.role !== 'assistant') {
+    return true;
+  }
+
+  return message.content.trim().length > 0;
 }

@@ -18,6 +18,7 @@ import {
   type ModelContextStrategy,
   type RuntimeTraceEntry,
   type SessionSnapshot,
+  type ToolCall,
 } from '@dg-agent/core';
 import { createDefaultPolicyRules } from './default-policies.js';
 import { DeviceCommandQueue } from './device-command-queue.js';
@@ -265,7 +266,7 @@ export class AgentRuntime {
 
       const assistantMessage = appendAssistantMessage(
         session,
-        turnResult.finalAssistantText,
+        { content: turnResult.finalAssistantText },
         turnStartIndex,
       );
       session.updatedAt = Date.now();
@@ -280,7 +281,11 @@ export class AgentRuntime {
       });
     } catch (error) {
       if (abortController.signal.aborted || isAbortError(error)) {
-        const abortedMessage = appendAssistantMessage(session, REPLY_ABORTED_NOTE, turnStartIndex);
+        const abortedMessage = appendAssistantMessage(
+          session,
+          { content: REPLY_ABORTED_NOTE },
+          turnStartIndex,
+        );
         session.updatedAt = Date.now();
         session.deviceState = await this.options.device.getState();
         await this.saveSessionIfAvailable(session);
@@ -297,7 +302,7 @@ export class AgentRuntime {
 
       const assistantErrorMessage = appendAssistantMessage(
         session,
-        normalizeAssistantErrorMessage(error),
+        { content: normalizeAssistantErrorMessage(error) },
         turnStartIndex,
       );
       session.updatedAt = Date.now();
@@ -375,10 +380,29 @@ export class AgentRuntime {
       }
 
       const iterationItems: LlmConversationItem[] = [];
-      const iterationAssistantMessage = llmResult.assistantMessage.trim();
+      const iterationAssistantContent = llmResult.assistantMessage;
+      const iterationHasAssistantState =
+        iterationAssistantContent.trim().length > 0 ||
+        (llmResult.reasoningContent?.trim().length ?? 0) > 0 ||
+        (llmResult.toolCalls?.length ?? 0) > 0;
 
-      if (iterationAssistantMessage) {
-        appendAssistantMessage(session, iterationAssistantMessage, turnStartIndex);
+      if (iterationHasAssistantState) {
+        appendAssistantMessage(
+          session,
+          {
+            content: iterationAssistantContent,
+            reasoningContent: llmResult.reasoningContent,
+            toolCalls: llmResult.toolCalls,
+          },
+          turnStartIndex,
+        );
+        iterationItems.push({
+          kind: 'message',
+          role: 'assistant',
+          content: iterationAssistantContent,
+          reasoningContent: llmResult.reasoningContent,
+          toolCalls: llmResult.toolCalls,
+        });
         session.updatedAt = Date.now();
         await this.saveSessionIfAvailable(session);
         this.events.emit({
@@ -387,14 +411,10 @@ export class AgentRuntime {
         });
       }
 
-      for (const toolCall of llmResult.toolCalls ?? []) {
-        iterationItems.push({
-          kind: 'function_call',
-          callId: toolCall.id,
-          name: toolCall.name,
-          argumentsJson: safeStringify(toolCall.args),
-        });
-
+      const toolCalls = llmResult.toolCalls ?? [];
+      for (let index = 0; index < toolCalls.length; index += 1) {
+        const toolCall = toolCalls[index];
+        if (!toolCall) continue;
         const output = await this.toolExecutor.execute({
           session,
           toolCall,
@@ -409,6 +429,11 @@ export class AgentRuntime {
             callId: toolCall.id,
             output,
           });
+          appendSkippedToolOutputs(
+            iterationItems,
+            toolCalls.slice(index + 1),
+            'Skipped after an earlier tool call was denied.',
+          );
           turnState.workingItems.push(...iterationItems);
           return this.runEphemeralNoToolFollowUp(
             session,
@@ -419,6 +444,17 @@ export class AgentRuntime {
           );
         }
         if (shouldStopTurnForDisconnectedDevice(toolCall.name, output)) {
+          iterationItems.push({
+            kind: 'function_call_output',
+            callId: toolCall.id,
+            output,
+          });
+          appendSkippedToolOutputs(
+            iterationItems,
+            toolCalls.slice(index + 1),
+            'Skipped because the device is not connected.',
+          );
+          turnState.workingItems.push(...iterationItems);
           return {
             finalAssistantText: '设备未连接，请先点击“连接设备”',
           };
@@ -631,7 +667,7 @@ function normalizeSessionHistory(session: SessionSnapshot): boolean {
       const previousComparable = findPreviousComparableMessage(normalizedMessages);
       if (
         previousComparable?.role === 'assistant' &&
-        previousComparable.content.trim() === message.content.trim()
+        areAssistantMessagesEquivalent(previousComparable, message)
       ) {
         changed = true;
         continue;
@@ -664,20 +700,87 @@ function findPreviousComparableMessage(
 
 function appendAssistantMessage(
   session: SessionSnapshot,
-  content: string,
+  input: {
+    content: string;
+    reasoningContent?: string;
+    toolCalls?: ToolCall[];
+  },
   turnStartIndex: number,
 ): ConversationMessage {
-  const normalized = content.trim();
-  const existing = session.messages
-    .slice(turnStartIndex + 1)
-    .find((message) => message.role === 'assistant' && message.content.trim() === normalized);
+  const normalized = buildAssistantMessageSignature(input);
+  const existing = session.messages.slice(turnStartIndex + 1).find(
+    (message) =>
+      message.role === 'assistant' &&
+      buildAssistantMessageSignature({
+        content: message.content,
+        reasoningContent: message.reasoningContent,
+        toolCalls: message.toolCalls,
+      }) === normalized,
+  );
   if (existing) {
     return existing;
   }
 
-  const message = createMessage('assistant', content);
+  const message = createMessage('assistant', input.content, Date.now(), {
+    reasoningContent: input.reasoningContent,
+    toolCalls: input.toolCalls,
+  });
   session.messages.push(message);
   return message;
+}
+
+function areAssistantMessagesEquivalent(
+  left: ConversationMessage,
+  right: ConversationMessage,
+): boolean {
+  return (
+    buildAssistantMessageSignature({
+      content: left.content,
+      reasoningContent: left.reasoningContent,
+      toolCalls: left.toolCalls,
+    }) ===
+    buildAssistantMessageSignature({
+      content: right.content,
+      reasoningContent: right.reasoningContent,
+      toolCalls: right.toolCalls,
+    })
+  );
+}
+
+function buildAssistantMessageSignature(input: {
+  content: string;
+  reasoningContent?: string;
+  toolCalls?: ToolCall[];
+}): string {
+  return JSON.stringify({
+    content: input.content.trim(),
+    reasoningContent: input.reasoningContent?.trim() ?? '',
+    toolCalls: (input.toolCalls ?? []).map((toolCall) => ({
+      id: toolCall.id,
+      name: toolCall.name,
+      args: toolCall.args,
+    })),
+  });
+}
+
+function appendSkippedToolOutputs(
+  target: LlmConversationItem[],
+  toolCalls: ToolCall[],
+  reason: string,
+): void {
+  for (const toolCall of toolCalls) {
+    target.push({
+      kind: 'function_call_output',
+      callId: toolCall.id,
+      output: JSON.stringify({
+        error: reason,
+        _meta: {
+          kind: 'tool-denied',
+          toolName: toolCall.name,
+        },
+      }),
+    });
+  }
 }
 
 function isInternalSyntheticMessage(content: string): boolean {

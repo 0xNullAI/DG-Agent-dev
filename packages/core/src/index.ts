@@ -40,6 +40,8 @@ export interface ConversationMessage {
   role: MessageRole;
   content: string;
   createdAt: number;
+  reasoningContent?: string;
+  toolCalls?: ToolCall[];
 }
 
 export interface ToolCall {
@@ -251,11 +253,14 @@ export function createMessage(
   role: MessageRole,
   content: string,
   createdAt = Date.now(),
+  options?: Pick<ConversationMessage, 'reasoningContent' | 'toolCalls'>,
 ): ConversationMessage {
   return {
     id: `${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
     role,
     content,
     createdAt,
+    reasoningContent: options?.reasoningContent,
+    toolCalls: options?.toolCalls ? structuredClone(options.toolCalls) : undefined,
   };
 }

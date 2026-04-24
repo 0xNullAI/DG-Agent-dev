@@ -13,7 +13,13 @@ import type {
 } from '@dg-agent/core';
 
 export type LlmConversationItem =
-  | { kind: 'message'; role: Exclude<MessageRole, 'system'> | 'system'; content: string }
+  | {
+      kind: 'message';
+      role: Exclude<MessageRole, 'system'> | 'system';
+      content: string;
+      reasoningContent?: string;
+      toolCalls?: ToolCall[];
+    }
   | { kind: 'function_call'; callId: string; name: string; argumentsJson: string }
   | { kind: 'function_call_output'; callId: string; output: string };
 
@@ -30,6 +36,7 @@ export interface LlmTurnInput {
 
 export interface LlmTurnResult {
   assistantMessage: string;
+  reasoningContent?: string;
   toolCalls?: ToolCall[];
   metadata?: Record<string, unknown>;
 }
