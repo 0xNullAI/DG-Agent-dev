@@ -1068,7 +1068,7 @@ export function App() {
               <Button
                 type="button"
                 variant="secondary"
-                className="h-9 min-w-[72px] rounded-[8px] px-4 text-xs font-medium"
+                className="!text-sm !font-medium h-9 min-w-[72px] rounded-[8px] px-4"
                 onClick={() => setResetSettingsDialogOpen(false)}
               >
                 取消
@@ -1076,7 +1076,7 @@ export function App() {
               <Button
                 type="button"
                 variant="destructive"
-                className="h-9 min-w-[88px] rounded-[8px] px-4 text-xs font-medium"
+                className="!text-sm !font-medium h-9 min-w-[88px] rounded-[8px] px-4 "
                 onClick={() => {
                   resetSettings();
                   setResetSettingsDialogOpen(false);
