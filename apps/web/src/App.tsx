@@ -11,9 +11,10 @@ import type { UpdateCheckerStatus } from '@dg-agent/update-browser';
 import {
   ArrowLeft,
   Bot,
-  Brain,
+  FileSearch,
+  LayoutTemplate,
+  Logs,
   RotateCcw,
-  ScrollText,
   Settings2,
   ShieldCheck,
   Volume2,
@@ -102,7 +103,7 @@ const SETTINGS_NAV_ITEMS: Array<{
     value: 'preset',
     label: '场景',
     description: '提示词预设和自定义场景',
-    icon: Brain,
+    icon: LayoutTemplate,
     sections: {
       内置场景: '选择内置互动风格。',
       自定义场景: '管理你自己的提示词预设。',
@@ -148,14 +149,14 @@ const SETTINGS_NAV_ITEMS: Array<{
     value: 'model-tool-logs',
     label: '模型日志',
     description: '模型输出、工具调用和运行事件',
-    icon: ScrollText,
+    icon: FileSearch,
     sections: {},
   },
   {
     value: 'bridge-logs',
     label: '桥接日志',
     description: 'QQ / Telegram 桥接状态和运行日志',
-    icon: ScrollText,
+    icon: Logs,
     sections: {},
   },
 ];
