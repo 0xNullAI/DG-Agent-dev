@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Meter } from '@/components/ui/meter';
 import { cn } from '@/lib/utils';
 import { MarkdownText } from './MarkdownText.js';
 import type { TraceFeedItem } from '../utils/trace-feed.js';
@@ -601,16 +602,7 @@ function ChannelStrengthBar({ channel, value, max }: ChannelStrengthBarProps) {
       <span className="text-[10px] font-semibold leading-none tracking-wide text-[var(--accent)]">
         {channel}
       </span>
-      <div className="relative h-3 w-full overflow-hidden rounded-full bg-[var(--bg-soft)] sm:h-3.5">
-        <div
-          className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)]/80 transition-[width] duration-300 ease-out"
-          style={{ width: `${normalizedValue}%` }}
-        />
-        <div
-          className="absolute inset-y-[-2px] w-[3px] rounded-full bg-[var(--danger)]/85"
-          style={{ left: `calc(${normalizedMax}% - 1.5px)` }}
-        />
-      </div>
+      <Meter value={normalizedValue} marker={normalizedMax} />
       <span className="text-[10px] font-medium tabular-nums leading-none text-[var(--text-soft)]">
         {value}
       </span>
