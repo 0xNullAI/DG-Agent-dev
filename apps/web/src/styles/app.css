@@ -974,16 +974,17 @@
   max-width: 440px;
 }
 
-.settings-workspace .settings-compact-control {
-  width: min(340px, 100%) !important;
-  justify-self: end;
-}
-
 .settings-workspace .settings-row-card.grid-cols-\[1fr_auto\] > :nth-child(even) > * {
   width: 100%;
 }
 
-.settings-workspace .settings-compact-control > * {
+.settings-workspace .settings-inline-field-control {
+  justify-self: end;
+  max-width: 440px;
+  width: 100%;
+}
+
+.settings-workspace .settings-inline-field-control > * {
   width: 100%;
 }
 
@@ -1410,7 +1411,7 @@
     max-width: none;
   }
 
-  .settings-workspace .settings-compact-control {
+  .settings-workspace .settings-inline-field-control {
     justify-self: stretch;
     width: 100% !important;
   }
