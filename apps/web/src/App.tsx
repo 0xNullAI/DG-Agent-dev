@@ -22,6 +22,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { BUILTIN_PROMPT_PRESETS } from '@dg-agent/prompts-basic';
 import { ChatPanel } from './components/ChatPanel.js';
 import { PermissionModal } from './components/PermissionModal.js';
 import { SafetyNoticeModal } from './components/SafetyNoticeModal.js';
@@ -1190,6 +1191,13 @@ export function App() {
                 onEmergencyStop={() => void stop()}
                 onOpenSidebar={() => setSidebarOpen(true)}
                 onOpenSettings={() => openSettingsModal('general')}
+                promptPresetId={settings.promptPresetId}
+                builtinPresets={BUILTIN_PROMPT_PRESETS}
+                savedPresets={settings.savedPromptPresets}
+                onPresetChange={(id) => {
+                  setSettingsDraft((prev) => ({ ...prev, promptPresetId: id }));
+                  flushSettingsDraft();
+                }}
               />
             )}
           </section>
