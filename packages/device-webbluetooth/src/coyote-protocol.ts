@@ -442,25 +442,26 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     this.state.strengthA = strengthA;
     this.state.strengthB = strengthB;
 
-    if (this.v2WaveAChar) {
-      const next = this.advanceWave('A');
-      if (next.int[3] >= 101) {
-        await this.v2WaveAChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
-      } else {
-        const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
-        await this.v2WaveAChar.writeValueWithoutResponse(
-          this.encodeV2Wave(params.x, params.y, params.z),
-        );
-      }
-    }
-
+    // 文档命名与通道对应关系相反：PWM_A34 (v2WaveAChar) 是B通道波形，PWM_B34 (v2WaveBChar) 是A通道波形
     if (this.v2WaveBChar) {
-      const next = this.advanceWave('B');
+      const next = this.advanceWave('A');
       if (next.int[3] >= 101) {
         await this.v2WaveBChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
       } else {
         const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
         await this.v2WaveBChar.writeValueWithoutResponse(
+          this.encodeV2Wave(params.x, params.y, params.z),
+        );
+      }
+    }
+
+    if (this.v2WaveAChar) {
+      const next = this.advanceWave('B');
+      if (next.int[3] >= 101) {
+        await this.v2WaveAChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
+      } else {
+        const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
+        await this.v2WaveAChar.writeValueWithoutResponse(
           this.encodeV2Wave(params.x, params.y, params.z),
         );
       }
