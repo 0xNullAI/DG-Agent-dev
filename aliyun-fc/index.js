@@ -115,7 +115,7 @@ const server = http.createServer(async (req, res) => {
 
   // Always force the upstream model server-side so the frontend stays agnostic.
   // Override via FC env var PROXY_MODEL without redeploying the web app.
-  body.model = process.env.PROXY_MODEL || 'deepseek-chat';
+  body.model = process.env.PROXY_MODEL || 'LongCat-Flash-Chat';
   body.max_tokens = Math.min(body.max_tokens || 2048, 2048);
   delete body.max_output_tokens;
   delete body.api_key;

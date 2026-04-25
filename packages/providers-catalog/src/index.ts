@@ -57,7 +57,7 @@ const providerSettingsSchema = z.object({
   useStrict: z.boolean(),
 });
 
-export const FREE_TRIAL_PROXY_URL = 'https://ai.071129.xyz';
+export const FREE_TRIAL_PROXY_URL = 'https://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
 
 export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
