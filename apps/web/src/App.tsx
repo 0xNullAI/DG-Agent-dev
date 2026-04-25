@@ -8,44 +8,20 @@ import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core'
 import { BrowserSafetyGuard } from '@dg-agent/safety-browser';
 import { applyTheme, subscribeThemeChanges } from '@dg-agent/theme-browser';
 import type { UpdateCheckerStatus } from '@dg-agent/update-browser';
-import {
-  ArrowLeft,
-  Bot,
-  FileSearch,
-  LayoutTemplate,
-  Logs,
-  RotateCcw,
-  Settings2,
-  ShieldCheck,
-  Volume2,
-  Waves,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+import { X } from 'lucide-react';
 import { BUILTIN_PROMPT_PRESETS } from '@dg-agent/prompts-basic';
 import { ChatPanel } from './components/ChatPanel.js';
 import { PermissionModal } from './components/PermissionModal.js';
 import { SafetyNoticeModal } from './components/SafetyNoticeModal.js';
-import { PresetSelector } from './components/PresetSelector.js';
 import { SessionPanel } from './components/SessionPanel.js';
-import { WaveformsPanel } from './components/WaveformsPanel.js';
-import { GeneralTab } from './components/settings/GeneralTab.js';
-import { SafetyTab } from './components/settings/SafetyTab.js';
-import { BridgeTab } from './components/settings/BridgeTab.js';
-import { BridgeLogsTab, ModelToolLogsTab } from './components/settings/LogsTab.js';
-import { VoiceTab } from './components/settings/VoiceTab.js';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { FloatingStatusBar } from './components/FloatingStatusBar.js';
+import { WaveformEditorDialog } from './components/WaveformEditorDialog.js';
+import { ResetSettingsDialog } from './components/ResetSettingsDialog.js';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-
+  SettingsSidebar,
+  SettingsWorkspace,
+  type SettingsModalTab,
+} from './components/SettingsDrawer.js';
 import {
   Sheet,
   SheetClose,
@@ -54,8 +30,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import {
   useBrowserAppServices,
   type PendingPermissionRequest,
@@ -69,125 +43,6 @@ import { createSessionId, isReplyAbortError } from './utils/app-runtime-helpers.
 import { buildWarnings } from './utils/runtime-warnings.js';
 import { formatUiErrorMessage, isBluetoothChooserCancelledError } from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
-
-type SettingsModalTab =
-  | 'general'
-  | 'preset'
-  | 'safety'
-  | 'waveforms'
-  | 'bridge'
-  | 'voice'
-  | 'bridge-logs'
-  | 'model-tool-logs';
-
-const SETTINGS_NAV_ITEMS: Array<{
-  value: SettingsModalTab;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  sections: Record<string, string>;
-}> = [
-  {
-    value: 'general',
-    label: '基础',
-    description: '主题、上下文和模型供应商',
-    icon: Settings2,
-    sections: {
-      基本设置: '调整界面主题和会话上下文策略。',
-      模型选择: '选择模型供应商，并配置该供应商需要的参数。',
-    },
-  },
-  {
-    value: 'preset',
-    label: '场景',
-    description: '内置场景和自定义场景',
-    icon: LayoutTemplate,
-    sections: {
-      内置场景: '选择内置互动风格。',
-      自定义场景: '管理你自己的场景预设。',
-    },
-  },
-  {
-    value: 'safety',
-    label: '安全',
-    description: '强度上限、权限和离开保护',
-    icon: ShieldCheck,
-    sections: {
-      最大强度上限: '限制每个通道允许输出的最高强度。',
-      工具调用确认模式: '决定 AI 控制设备前需要怎样确认。',
-      后台行为: '设置切换后台和启动安全确认行为。',
-    },
-  },
-  {
-    value: 'waveforms',
-    label: '波形',
-    description: '内置波形和自定义波形库',
-    icon: Waves,
-    sections: {},
-  },
-  {
-    value: 'bridge',
-    label: 'Bot',
-    description: 'QQ、Telegram 和远程控制',
-    icon: Bot,
-    sections: {
-      桥接: '配置远程消息入口和允许访问的用户。',
-    },
-  },
-  {
-    value: 'voice',
-    label: '语音',
-    description: '语音识别和语音合成配置',
-    icon: Volume2,
-    sections: {
-      语音: '配置语音识别、语音合成和相关后端。',
-    },
-  },
-  {
-    value: 'model-tool-logs',
-    label: '模型日志',
-    description: '模型输出、工具调用和运行事件',
-    icon: FileSearch,
-    sections: {},
-  },
-  {
-    value: 'bridge-logs',
-    label: '桥接日志',
-    description: 'QQ / Telegram 桥接状态和运行日志',
-    icon: Logs,
-    sections: {},
-  },
-];
-
-const SETTINGS_NAV_GROUPS: Array<{
-  label: string;
-  values: SettingsModalTab[];
-}> = [
-  { label: '配置', values: ['general', 'preset', 'safety', 'waveforms'] },
-  { label: '扩展', values: ['bridge', 'voice'] },
-  { label: '日志', values: ['model-tool-logs', 'bridge-logs'] },
-];
-
-function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): string {
-  switch (voiceState) {
-    case 'listening':
-      return '录音中';
-    case 'speaking':
-      return '语音合成中';
-    case 'idle':
-    default:
-      return '空闲';
-  }
-}
-
-function getToastMotionClass(phase: 'entering' | 'visible' | 'exiting'): string {
-  return cn(
-    'pointer-events-auto flex justify-center transition-all duration-200 ease-out will-change-transform',
-    phase === 'entering' && 'translate-y-[-8px] scale-[0.98] opacity-0',
-    phase === 'visible' && 'translate-y-0 scale-100 opacity-100',
-    phase === 'exiting' && 'translate-y-[-8px] scale-[0.98] opacity-0',
-  );
-}
 
 export function App() {
   const activeSessionIdRef = useRef<string | null>(null);
@@ -293,8 +148,11 @@ export function App() {
   const warnings = [...buildWarnings(settings, modes, speechCapabilities), ...serviceInitWarnings];
   const traceFeed = buildTraceFeed(sessionTrace);
 
-  const { visibleErrorItems, visibleWarnings, visibleEventToasts, hasVisibleToasts } =
-    useToastManager({ errorMessage, warnings, events });
+  const { visibleErrorItems, visibleWarnings, visibleEventToasts } = useToastManager({
+    errorMessage,
+    warnings,
+    events,
+  });
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
@@ -647,184 +505,6 @@ export function App() {
     setSettingsModalOpen(false);
   }
 
-  function renderSettingsTabContent() {
-    switch (settingsModalTab) {
-      case 'general':
-        return <GeneralTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
-      case 'preset':
-        return (
-          <PresetSelector
-            settingsDraft={settingsDraft}
-            setSettingsDraft={setSettingsDraft}
-            onDeleteSavedPromptPreset={deleteSavedPromptPreset}
-          />
-        );
-      case 'safety':
-        return <SafetyTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
-      case 'waveforms':
-        return (
-          <WaveformsPanel
-            waveforms={waveforms}
-            customWaveforms={customWaveforms}
-            onImport={(files) => void importWaveformFiles(files)}
-            onRemove={(id) => void removeWaveform(id)}
-            onEdit={openWaveformEditor}
-          />
-        );
-      case 'bridge':
-        return <BridgeTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
-      case 'voice':
-        return <VoiceTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
-      case 'bridge-logs':
-        return (
-          <BridgeLogsTab
-            bridgeLogs={bridgeLogs}
-            bridgeStatus={bridgeStatus}
-            settings={settings}
-            events={events}
-          />
-        );
-      case 'model-tool-logs':
-        return (
-          <ModelToolLogsTab
-            bridgeLogs={bridgeLogs}
-            bridgeStatus={bridgeStatus}
-            events={events}
-            settings={settings}
-          />
-        );
-      default:
-        return null;
-    }
-  }
-
-  function renderSettingsSidebar() {
-    return (
-      <aside className="settings-sidebar">
-        <button type="button" className="settings-sidebar-back" onClick={closeSettingsWorkspace}>
-          <ArrowLeft className="h-4 w-4" />
-          <span>返回聊天</span>
-        </button>
-
-        <nav className="settings-sidebar-nav" aria-label="设置分类">
-          {SETTINGS_NAV_GROUPS.map((group) => (
-            <div key={group.label} className="settings-nav-group">
-              <div className="settings-nav-group-label">{group.label}</div>
-              {group.values.map((value) => {
-                const item = SETTINGS_NAV_ITEMS.find((entry) => entry.value === value)!;
-                const active = item.value === settingsModalTab;
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    className={active ? 'settings-nav-item active' : 'settings-nav-item'}
-                    onClick={() => {
-                      setSettingsModalTab(item.value);
-                      setSettingsMobileNavOpen(false);
-                    }}
-                  >
-                    <Icon className="settings-nav-icon" />
-                    <span className="sidebar-icon-label">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-
-        <div className="settings-sidebar-footer">
-          <Button
-            variant="ghost"
-            className="settings-sidebar-reset"
-            onClick={() => setResetSettingsDialogOpen(true)}
-          >
-            <RotateCcw className="h-4 w-4 shrink-0" />
-            <span className="sidebar-icon-label">恢复默认</span>
-          </Button>
-        </div>
-      </aside>
-    );
-  }
-
-  function renderSettingsWorkspace() {
-    const currentItem =
-      SETTINGS_NAV_ITEMS.find((item) => item.value === settingsModalTab) ?? SETTINGS_NAV_ITEMS[0]!;
-
-    return (
-      <section
-        className={
-          settingsMobileNavOpen
-            ? 'settings-workspace settings-mobile-nav-open'
-            : 'settings-workspace'
-        }
-      >
-        <section className="settings-mobile-directory lg:hidden">
-          <header className="settings-mobile-directory-header">
-            <button type="button" onClick={closeSettingsWorkspace} aria-label="返回聊天">
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <h2>设置</h2>
-          </header>
-          <nav className="settings-mobile-directory-list" aria-label="设置分类">
-            {SETTINGS_NAV_GROUPS.map((group) => (
-              <div key={group.label} className="settings-mobile-directory-group">
-                <div className="settings-mobile-directory-group-label">{group.label}</div>
-                {group.values.map((value) => {
-                  const item = SETTINGS_NAV_ITEMS.find((entry) => entry.value === value)!;
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.value}
-                      type="button"
-                      onClick={() => {
-                        setSettingsModalTab(item.value);
-                        setSettingsMobileNavOpen(false);
-                      }}
-                    >
-                      <Icon className="settings-mobile-directory-icon" />
-                      <span className="sidebar-icon-label">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-          <div className="settings-mobile-directory-footer">
-            <button type="button" onClick={() => setResetSettingsDialogOpen(true)}>
-              <RotateCcw className="h-4 w-4" />
-              <span className="sidebar-icon-label">恢复默认</span>
-            </button>
-          </div>
-        </section>
-
-        <header className="settings-mobile-header lg:hidden">
-          <button
-            type="button"
-            className="settings-mobile-back"
-            onClick={() => setSettingsMobileNavOpen(true)}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <span>{currentItem.label}</span>
-        </header>
-
-        <main className="settings-workspace-main">
-          <header className="settings-workspace-title">
-            <h2>{currentItem.label}</h2>
-            <p>{currentItem.description}</p>
-          </header>
-
-          <div className="settings-workspace-content">
-            <div className="settings settings-grouped settings-panel-body">
-              {renderSettingsTabContent()}
-            </div>
-          </div>
-        </main>
-      </section>
-    );
-  }
-
   function resolvePermission(decision: PermissionDecision): void {
     if (!pendingPermission) return;
     pendingPermission.resolve(decision);
@@ -840,82 +520,6 @@ export function App() {
     setSettingsDraft(nextSettings);
     setSafetyNoticeAccepted(true);
   }
-
-  const floatingStatus =
-    voiceMode || hasVisibleToasts || updateStatus.hasUpdate ? (
-      <div className="pointer-events-none absolute inset-x-0 top-[3.5rem] z-40 flex justify-center px-3">
-        <div className="flex w-full max-w-[800px] flex-col gap-3">
-          {voiceMode && (
-            <section className="pointer-events-auto mx-auto w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-center shadow-[var(--shadow)]">
-              <div className="text-sm font-medium text-[var(--text)]">
-                语音会话状态：{formatVoiceStateLabel(voiceState)}
-              </div>
-              <div className="mt-1 whitespace-normal break-words text-sm text-[var(--text-soft)]">
-                {voiceTranscript || '正在等待语音识别输入…'}
-              </div>
-            </section>
-          )}
-
-          {visibleErrorItems.map((item) => (
-            <div key={item.key} className={getToastMotionClass(item.phase)}>
-              <Alert
-                variant={item.variant}
-                className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
-              >
-                <AlertDescription className="whitespace-normal break-words text-center">
-                  {item.text}
-                </AlertDescription>
-              </Alert>
-            </div>
-          ))}
-          {visibleWarnings.map((item) => (
-            <div key={item.key} className={getToastMotionClass(item.phase)}>
-              <Alert
-                variant={item.variant}
-                className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
-              >
-                <AlertDescription className="whitespace-normal break-words text-center">
-                  {item.text}
-                </AlertDescription>
-              </Alert>
-            </div>
-          ))}
-          {visibleEventToasts.map((item) => (
-            <div key={item.key} className={getToastMotionClass(item.phase)}>
-              <Alert
-                variant={item.variant}
-                className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
-              >
-                <AlertDescription className="whitespace-normal break-words text-center">
-                  {item.text}
-                </AlertDescription>
-              </Alert>
-            </div>
-          ))}
-
-          {updateStatus.hasUpdate && (
-            <div className="pointer-events-auto flex justify-center">
-              <Alert
-                variant="info"
-                className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
-              >
-                <AlertDescription className="whitespace-normal break-words text-center">
-                  检测到新版本，刷新页面可能会中断蓝牙连接与语音会话
-                </AlertDescription>
-                <div className="mt-3 flex flex-wrap justify-center gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => updateChecker.dismiss()}>
-                    稍后提醒
-                  </Button>
-                  <Button size="sm" onClick={() => window.location.reload()}>
-                    立即刷新
-                  </Button>
-                </div>
-              </Alert>
-            </div>
-          )}
-        </div>
-      </div>
-    ) : null;
 
   return (
     <>
@@ -936,103 +540,17 @@ export function App() {
           />
         )}
 
-        {/* Waveform editor dialog */}
-        <Dialog
-          open={Boolean(editingWaveform)}
-          onOpenChange={(open) => {
-            if (!open) {
-              setEditingWaveform(null);
-            }
-          }}
-        >
-          {editingWaveform && (
-            <DialogContent
-              overlayClassName="bg-black/18 backdrop-blur-[2px]"
-              className="max-w-[680px] overflow-hidden p-0"
-            >
-              <div className="panel-header">
-                <div className="min-w-0 flex-1">
-                  <DialogTitle className="text-[1.1rem] tracking-[-0.03em]">编辑波形</DialogTitle>
-                  <DialogDescription className="mt-1">修改自定义波形的名称和说明</DialogDescription>
-                </div>
-              </div>
-              <label className="settings">
-                <span>名称</span>
-                <Input
-                  value={editingWaveform.name}
-                  onChange={(event) =>
-                    setEditingWaveform((current) =>
-                      current
-                        ? {
-                            ...current,
-                            name: event.target.value,
-                          }
-                        : current,
-                    )
-                  }
-                />
-              </label>
-              <label className="settings">
-                <span>说明</span>
-                <Textarea
-                  rows={4}
-                  value={editingWaveform.description}
-                  onChange={(event) =>
-                    setEditingWaveform((current) =>
-                      current
-                        ? {
-                            ...current,
-                            description: event.target.value,
-                          }
-                        : current,
-                    )
-                  }
-                />
-              </label>
-              <div className="settings-actions waveform-modal-actions mt-2 mb-5">
-                <Button variant="secondary" onClick={() => setEditingWaveform(null)}>
-                  取消
-                </Button>
-                <Button onClick={() => void saveWaveformEdits()}>保存</Button>
-              </div>
-            </DialogContent>
-          )}
-        </Dialog>
+        <WaveformEditorDialog
+          editingWaveform={editingWaveform}
+          onEditingWaveformChange={setEditingWaveform}
+          onSave={saveWaveformEdits}
+        />
 
-        <Dialog open={resetSettingsDialogOpen} onOpenChange={setResetSettingsDialogOpen}>
-          <DialogContent
-            overlayClassName="bg-black/30 backdrop-blur-[1px]"
-            className="reset-settings-dialog max-w-[380px] rounded-[14px] p-5 shadow-[var(--shadow-soft)]"
-          >
-            <DialogHeader className="gap-1 pr-10">
-              <DialogTitle className="text-base font-semibold">恢复默认设置？</DialogTitle>
-              <DialogDescription className="text-[13px] leading-5">
-                这会重置当前模型、场景、安全、桥接和语音识别/合成配置。确认后会立即生效。
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="mt-5 gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="!text-sm !font-medium h-9 min-w-[72px] rounded-[8px] px-4"
-                onClick={() => setResetSettingsDialogOpen(false)}
-              >
-                取消
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                className="!text-sm !font-medium h-9 min-w-[88px] rounded-[8px] px-4 "
-                onClick={() => {
-                  resetSettings();
-                  setResetSettingsDialogOpen(false);
-                }}
-              >
-                确认恢复
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <ResetSettingsDialog
+          open={resetSettingsDialogOpen}
+          onOpenChange={setResetSettingsDialogOpen}
+          onConfirm={resetSettings}
+        />
 
         {/* ===== Sidebar sheet (mobile) ===== */}
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -1080,7 +598,13 @@ export function App() {
           {/* Desktop sidebar */}
           <aside className="dg-sidebar-shell hidden min-h-0 overflow-hidden border-r border-[var(--surface-border)] lg:block">
             {settingsModalOpen ? (
-              renderSettingsSidebar()
+              <SettingsSidebar
+                tab={settingsModalTab}
+                onTabChange={setSettingsModalTab}
+                onMobileNavOpenChange={setSettingsMobileNavOpen}
+                onClose={closeSettingsWorkspace}
+                onRequestReset={() => setResetSettingsDialogOpen(true)}
+              />
             ) : (
               <SessionPanel
                 savedSessions={savedSessions}
@@ -1098,9 +622,38 @@ export function App() {
 
           {/* Chat section */}
           <section className="relative flex min-h-0 min-w-0 overflow-hidden">
-            {floatingStatus}
+            <FloatingStatusBar
+              voiceMode={voiceMode}
+              voiceState={voiceState}
+              voiceTranscript={voiceTranscript}
+              errorItems={visibleErrorItems}
+              warnings={visibleWarnings}
+              eventToasts={visibleEventToasts}
+              updateStatus={updateStatus}
+              onDismissUpdate={() => updateChecker.dismiss()}
+              onReload={() => window.location.reload()}
+            />
             {settingsModalOpen ? (
-              renderSettingsWorkspace()
+              <SettingsWorkspace
+                tab={settingsModalTab}
+                onTabChange={setSettingsModalTab}
+                mobileNavOpen={settingsMobileNavOpen}
+                onMobileNavOpenChange={setSettingsMobileNavOpen}
+                onClose={closeSettingsWorkspace}
+                onRequestReset={() => setResetSettingsDialogOpen(true)}
+                settingsDraft={settingsDraft}
+                setSettingsDraft={setSettingsDraft}
+                onDeleteSavedPromptPreset={deleteSavedPromptPreset}
+                waveforms={waveforms}
+                customWaveforms={customWaveforms}
+                onImportWaveforms={(files) => void importWaveformFiles(files)}
+                onRemoveWaveform={(id) => void removeWaveform(id)}
+                onEditWaveform={openWaveformEditor}
+                bridgeLogs={bridgeLogs}
+                bridgeStatus={bridgeStatus}
+                events={events}
+                settings={settings}
+              />
             ) : (
               <ChatPanel
                 activeSessionId={activeSessionId}

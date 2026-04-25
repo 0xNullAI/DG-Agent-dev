@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createEmptyDeviceState } from '@dg-agent/core';
+import {
+  createEmptyDeviceState,
+  type ActionContext,
+  type ConversationMessage,
+  type SessionSnapshot,
+  type SourceType,
+} from '@dg-agent/core';
+import type { TurnToolCallSummary } from '@dg-agent/runtime';
 import { createBuildBrowserInstructions } from './build-browser-instructions.js';
 import type { BrowserInstructionSettings } from './build-browser-instructions.js';
 
@@ -17,28 +24,26 @@ function makeSettings(overrides?: Partial<BrowserInstructionSettings>): BrowserI
 
 function makeInput(overrides?: {
   isFirstIteration?: boolean;
-  sourceType?: 'web' | 'system' | 'bridge-qq' | 'bridge-telegram';
-  turnToolCalls?: Array<{ name: string; argsJson: string }>;
+  sourceType?: SourceType;
+  turnToolCalls?: TurnToolCallSummary[];
   deviceState?: ReturnType<typeof createEmptyDeviceState>;
 }) {
   const deviceState = overrides?.deviceState ?? { ...createEmptyDeviceState(), connected: true };
+  const session: SessionSnapshot = {
+    id: 'test',
+    createdAt: 0,
+    updatedAt: 0,
+    messages: [] as ConversationMessage[],
+    deviceState,
+  };
+  const context: ActionContext = {
+    sessionId: 'test',
+    sourceType: overrides?.sourceType ?? 'web',
+    traceId: 'trace-test',
+  };
   return {
-    session: {
-      id: 'test',
-      createdAt: 0,
-      updatedAt: 0,
-      messages: [],
-      deviceState,
-    },
-    context: {
-      sessionId: 'test',
-      sourceType: (overrides?.sourceType ?? 'web') as
-        | 'web'
-        | 'system'
-        | 'bridge-qq'
-        | 'bridge-telegram',
-      traceId: 'trace-test',
-    },
+    session,
+    context,
     isFirstIteration: overrides?.isFirstIteration ?? true,
     turnToolCalls: overrides?.turnToolCalls ?? [],
   };
