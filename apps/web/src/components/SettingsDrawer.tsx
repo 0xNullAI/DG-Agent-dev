@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Volume2,
   Waves,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -325,6 +326,14 @@ export function SettingsWorkspace(props: SettingsDrawerProps) {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <span>{currentItem.label}</span>
+        <button
+          type="button"
+          className="settings-mobile-back"
+          onClick={onClose}
+          aria-label="关闭设置"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </header>
 
       <main className="settings-workspace-main">

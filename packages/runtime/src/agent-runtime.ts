@@ -349,25 +349,53 @@ export class AgentRuntime {
     for (let iteration = 0; iteration < this.toolCallConfig.maxToolIterations; iteration++) {
       throwIfAborted(abortSignal);
 
+      const instructions =
+        this.options.buildInstructions?.({
+          session,
+          context: input.context,
+          isFirstIteration: iteration === 0,
+          turnToolCalls: collectTurnToolCalls(turnState),
+        }) ?? '';
+      const tools =
+        input.context.sourceType === 'system' ? [] : await this.toolRegistry.listDefinitions();
+      const conversation = buildConversationItems(
+        session,
+        turnState,
+        iteration === 0 ? ephemeralInput : null,
+        this.options.modelContextStrategy,
+      );
+
+      this.events.emit({
+        type: 'llm-turn-start',
+        sessionId: session.id,
+        iteration,
+        instructions,
+        messages: conversation.map((item) => ({
+          role:
+            item.kind === 'message'
+              ? item.role
+              : item.kind === 'function_call'
+                ? 'tool_call'
+                : 'tool_result',
+          content:
+            item.kind === 'message'
+              ? item.content
+              : item.kind === 'function_call'
+                ? `${item.name}(${item.argumentsJson})`
+                : item.output,
+          toolCallCount:
+            item.kind === 'message' && item.toolCalls?.length ? item.toolCalls.length : undefined,
+        })),
+        toolNames: tools.map((t) => t.name),
+      });
+
       const llmResult = await this.options.llm.runTurn({
         session,
         message: input.text,
         context: input.context,
-        instructions:
-          this.options.buildInstructions?.({
-            session,
-            context: input.context,
-            isFirstIteration: iteration === 0,
-            turnToolCalls: collectTurnToolCalls(turnState),
-          }) ?? '',
-        tools:
-          input.context.sourceType === 'system' ? [] : await this.toolRegistry.listDefinitions(),
-        conversation: buildConversationItems(
-          session,
-          turnState,
-          iteration === 0 ? ephemeralInput : null,
-          this.options.modelContextStrategy,
-        ),
+        instructions,
+        tools,
+        conversation,
         abortSignal,
         onTextDelta: (content) => {
           this.events.emit({
@@ -376,6 +404,14 @@ export class AgentRuntime {
             content,
           });
         },
+      });
+
+      this.events.emit({
+        type: 'llm-turn-complete',
+        sessionId: session.id,
+        iteration,
+        assistantMessage: llmResult.assistantMessage,
+        toolCalls: llmResult.toolCalls ?? [],
       });
 
       throwIfAborted(abortSignal);

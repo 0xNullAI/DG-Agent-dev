@@ -223,7 +223,22 @@ export type RuntimeEvent =
       result: DeviceCommandResult;
     }
   | { type: 'device-state-changed'; state: DeviceState }
-  | { type: 'runtime-warning'; sessionId?: string; message: string };
+  | { type: 'runtime-warning'; sessionId?: string; message: string }
+  | {
+      type: 'llm-turn-start';
+      sessionId: string;
+      iteration: number;
+      instructions: string;
+      messages: Array<{ role: string; content: string; toolCallCount?: number }>;
+      toolNames: string[];
+    }
+  | {
+      type: 'llm-turn-complete';
+      sessionId: string;
+      iteration: number;
+      assistantMessage: string;
+      toolCalls: ToolCall[];
+    };
 
 export function createEmptyDeviceState(): DeviceState {
   return {

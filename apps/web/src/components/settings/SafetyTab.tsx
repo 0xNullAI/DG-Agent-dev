@@ -1,5 +1,13 @@
 import React, { useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
 import { ChevronDown } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { Input } from '@/components/ui/input';
@@ -290,26 +298,73 @@ function ToolLimitField({
 
 function AdvancedSection({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  function handleToggle() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    if (confirmed) {
+      setOpen(true);
+    } else {
+      setShowConfirm(true);
+    }
+  }
+
   return (
-    <section className="settings-row-card">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between text-left"
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <h3 className="settings-card-legend mb-0">高级选项</h3>
-        <div className="flex items-center gap-1">
-          <span className="text-[12px] text-[var(--text-faint)]">{open ? '收起' : '展开'}</span>
-          <ChevronDown
-            className={cn(
-              'h-4 w-4 text-[var(--text-faint)] transition-transform duration-200',
-              open && 'rotate-180',
-            )}
-          />
-        </div>
-      </button>
-      {open && <div className="mt-3 space-y-3">{children}</div>}
-    </section>
+    <>
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认开启高级选项</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-[var(--text-soft)]">
+            <p>高级选项包含对 AI 工具调用频率、强度边界、冷启动等参数的细粒度控制。</p>
+            <p>错误的配置可能导致设备行为超出预期，甚至造成不适或伤害。</p>
+            <p className="font-semibold text-[var(--danger)]">
+              请确认你了解每项参数的含义，并愿意自行承担修改后产生的风险。
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowConfirm(false)}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmed(true);
+                setShowConfirm(false);
+                setOpen(true);
+              }}
+            >
+              我已了解，继续
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <section className="settings-row-card">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between text-left"
+          onClick={handleToggle}
+        >
+          <h3 className="settings-card-legend mb-0">高级选项</h3>
+          <div className="flex items-center gap-1">
+            <span className="text-[12px] text-[var(--text-faint)]">{open ? '收起' : '展开'}</span>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 text-[var(--text-faint)] transition-transform duration-200',
+                open && 'rotate-180',
+              )}
+            />
+          </div>
+        </button>
+        {open && <div className="mt-3 space-y-3">{children}</div>}
+      </section>
+    </>
   );
 }
 

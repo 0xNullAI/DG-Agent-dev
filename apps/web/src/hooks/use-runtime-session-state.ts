@@ -136,7 +136,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
     void syncCurrentSession();
 
     const unsubscribe = client.subscribe((event) => {
-      setEvents((current) => [event, ...current].slice(0, 20));
+      setEvents((current) => [event, ...current].slice(0, 200));
 
       const isActiveSessionEvent = isActiveRuntimeSessionEvent(event, sessionId);
 
