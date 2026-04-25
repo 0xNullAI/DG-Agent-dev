@@ -431,21 +431,24 @@ export class AgentRuntime {
 
       const iterationItems: LlmConversationItem[] = [];
       const iterationAssistantContent = llmResult.assistantMessage;
-      const iterationHasAssistantState =
+      const hasTextOrReasoning =
         iterationAssistantContent.trim().length > 0 ||
-        (llmResult.reasoningContent?.trim().length ?? 0) > 0 ||
-        (llmResult.toolCalls?.length ?? 0) > 0;
+        (llmResult.reasoningContent?.trim().length ?? 0) > 0;
+      const hasToolCalls = (llmResult.toolCalls?.length ?? 0) > 0;
+      const iterationHasAssistantState = hasTextOrReasoning || hasToolCalls;
 
       if (iterationHasAssistantState) {
-        appendAssistantMessage(
-          session,
-          {
-            content: iterationAssistantContent,
-            reasoningContent: llmResult.reasoningContent,
-            toolCalls: llmResult.toolCalls,
-          },
-          turnStartIndex,
-        );
+        if (hasTextOrReasoning) {
+          appendAssistantMessage(
+            session,
+            {
+              content: iterationAssistantContent,
+              reasoningContent: llmResult.reasoningContent,
+              toolCalls: llmResult.toolCalls,
+            },
+            turnStartIndex,
+          );
+        }
         iterationItems.push({
           kind: 'message',
           role: 'assistant',

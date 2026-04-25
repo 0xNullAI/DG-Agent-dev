@@ -25,19 +25,19 @@ describe('providers-catalog', () => {
     const runtime = resolveProviderRuntimeSettings(createProviderSettings('free'));
 
     expect(runtime.apiKey).toBe('free');
-    expect(runtime.model).toBe('deepseek-v4-flash');
+    expect(runtime.model).toBe('LongCat-Flash-Chat');
     expect(runtime.baseUrl).toBe(FREE_TRIAL_PROXY_URL + '/v1');
     expect(runtime.browserSupported).toBe(true);
   });
 
-  it('uses deepseek-v4-flash as the default deepseek model', () => {
+  it('uses deepseek-v4-pro as the default deepseek model', () => {
     const normalized = normalizeProviderSettings({
       ...createProviderSettings('deepseek'),
       apiKey: 'sk-test',
       model: '',
     });
 
-    expect(normalized.model).toBe('deepseek-v4-flash');
+    expect(normalized.model).toBe('deepseek-v4-pro');
     expect(normalized.baseUrl).toBe('https://api.deepseek.com');
     expect(normalized.endpoint).toBe('chat/completions');
   });

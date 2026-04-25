@@ -105,14 +105,12 @@ export function buildAssistantMessageSignature(input: {
   reasoningContent?: string;
   toolCalls?: ToolCall[];
 }): string {
+  // Dedup by visible text and reasoning only. Tool calls are intentionally
+  // excluded so an iteration that emitted "X" with a tool call dedupes against
+  // a later final reply that emits "X" without tool calls.
   return JSON.stringify({
     content: input.content.trim(),
     reasoningContent: input.reasoningContent?.trim() ?? '',
-    toolCalls: (input.toolCalls ?? []).map((toolCall) => ({
-      id: toolCall.id,
-      name: toolCall.name,
-      args: toolCall.args,
-    })),
   });
 }
 

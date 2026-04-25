@@ -87,6 +87,28 @@ The runtime's `runTurn()` loops: build instructions → call LLM → if tool cal
 - Use `import type` for type-only imports.
 - Unused vars must use `_` prefix pattern.
 
+### Package naming convention
+
+Mixed by design — read the rule before adding a new package:
+
+- **No suffix** (`permissions`, `waveforms`, `bridge`): the package contains
+  a runtime-agnostic basic implementation alongside a runtime-specific one
+  (e.g. `BasicPermissionService` + `BrowserPermissionService`). Browser-only
+  side effects must be lazily contained inside class methods, never at the
+  module top level — Node.js consumers must be able to import the package
+  without triggering DOM / IndexedDB references.
+- **`-browser` / `-webbluetooth` suffix** (`storage-browser`, `audio-browser`,
+  `device-webbluetooth`, `agent-browser`): the package is a pure
+  browser-runtime implementation with no basic counterpart. Future Node.js
+  alternatives ship as separate packages (`storage-node`, `device-serial`,
+  `agent-node`, etc.) rather than being merged in.
+- **`-http` / `-catalog` suffix** (`providers-openai-http`,
+  `providers-catalog`): describes a transport / role rather than a runtime;
+  reusable across runtimes.
+
+When adding a new package, pick the suffix style that matches its category
+above. Do not introduce a third style.
+
 ## UI Maintenance Notes
 
 These behaviors have been confirmed by the user — do not change without explicit request.

@@ -986,7 +986,7 @@ describe('AgentRuntime', () => {
       ),
     ).toBe(false);
     const denied = events.find((event) => event.type === 'tool-call-denied');
-    expect(denied && 'reason' in denied ? denied.reason : '').toContain('already active channel');
+    expect(denied && 'reason' in denied ? denied.reason : '').toContain('还没有运行');
   });
 
   it('allows burst on inactive channels when the tool-call config disables that guard', async () => {
