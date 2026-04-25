@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import type { WaveformDefinition } from '@dg-agent/core';
-import type { BrowserWaveformLibrary } from '@dg-agent/waveforms-browser';
+import type { BrowserWaveformLibrary } from '@dg-agent/waveforms';
 
 export interface EditingWaveformState {
   id: string;

@@ -13,7 +13,7 @@ import {
   type ModelContextStrategy,
   type RuntimeEvent,
 } from '@dg-agent/core';
-import { createBasicWaveformLibrary } from '@dg-agent/waveforms-basic';
+import { createBasicWaveformLibrary } from '@dg-agent/waveforms';
 
 class TestDevice implements DeviceClient {
   private state: DeviceState;

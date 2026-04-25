@@ -7,7 +7,7 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@dg-agent/core": "0.1.0",
-    "@dg-agent/waveforms-basic": "0.1.0",
+    "@dg-agent/waveforms": "0.1.0",
     "zod": "^3.23.8"
   },
   "scripts": {
