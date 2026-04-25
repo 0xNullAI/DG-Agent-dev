@@ -9,6 +9,35 @@ import {
 } from '@dg-agent/core';
 import { buildLiveTraceFeedItemFromEvent, type TraceFeedItem } from '../utils/trace-feed.js';
 
+const EVENT_LOG_KEY = 'dg-agent.event-log';
+const EVENT_LOG_MAX = 200;
+
+function loadPersistedEvents(): RuntimeEvent[] {
+  try {
+    const raw = localStorage.getItem(EVENT_LOG_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as RuntimeEvent[];
+  } catch {
+    return [];
+  }
+}
+
+function savePersistedEvents(events: RuntimeEvent[]): void {
+  try {
+    localStorage.setItem(EVENT_LOG_KEY, JSON.stringify(events));
+  } catch {
+    // storage full or unavailable — ignore
+  }
+}
+
+function clearPersistedEvents(): void {
+  try {
+    localStorage.removeItem(EVENT_LOG_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export interface UseRuntimeSessionStateOptions {
   client: AgentClient;
   enabled: boolean;
@@ -39,7 +68,7 @@ export function shouldRefreshSessionForEvent(event: RuntimeEvent): boolean {
 export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
   const { client, enabled, onRuntimeEvent } = options;
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [events, setEvents] = useState<RuntimeEvent[]>([]);
+  const [events, setEvents] = useState<RuntimeEvent[]>(loadPersistedEvents);
   const [session, setSession] = useState<SessionSnapshot | null>(null);
   const [sessionTrace, setSessionTrace] = useState<RuntimeTraceEntry[]>([]);
   const [savedSessions, setSavedSessions] = useState<SessionSnapshot[]>([]);
@@ -56,6 +85,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
 
   const clearEvents = useCallback(() => {
     setEvents([]);
+    clearPersistedEvents();
   }, []);
 
   const clearStreamingAssistantText = useCallback(() => {
@@ -136,7 +166,11 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
     void syncCurrentSession();
 
     const unsubscribe = client.subscribe((event) => {
-      setEvents((current) => [event, ...current].slice(0, 200));
+      setEvents((current) => {
+        const next = [event, ...current].slice(0, EVENT_LOG_MAX);
+        savePersistedEvents(next);
+        return next;
+      });
 
       const isActiveSessionEvent = isActiveRuntimeSessionEvent(event, sessionId);
 

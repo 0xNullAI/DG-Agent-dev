@@ -146,7 +146,7 @@ function CollapsibleJson({ label, data }: { label: string; data: unknown }) {
       <summary className="cursor-pointer select-none text-[11px] text-[var(--text-faint)] hover:text-[var(--text-soft)]">
         {label}
       </summary>
-      <pre className="mt-1 max-h-[300px] overflow-auto whitespace-pre-wrap break-all rounded-[6px] bg-[var(--bg-soft)] p-2 text-[10px] leading-relaxed text-[var(--text-soft)]">
+      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-words rounded-[6px] bg-[var(--bg-soft)] p-2 text-[10px] leading-relaxed text-[var(--text-soft)]">
         {JSON.stringify(data, null, 2)}
       </pre>
     </details>
