@@ -344,6 +344,8 @@ export class AgentRuntime {
   ): Promise<{ finalAssistantText: string }> {
     const turnState = createTurnState();
 
+    session.deviceState = await this.options.device.getState();
+
     for (let iteration = 0; iteration < this.toolCallConfig.maxToolIterations; iteration++) {
       throwIfAborted(abortSignal);
 
