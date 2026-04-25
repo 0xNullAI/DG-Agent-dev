@@ -1,7 +1,7 @@
 import type { getBrowserSpeechCapabilities } from '@dg-agent/audio-browser';
 import { isProviderUsableInBrowser, providerRequiresUserApiKey } from '@dg-agent/providers-catalog';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
-import type { describeBrowserModes } from '../composition/create-browser-agent-client.js';
+import type { describeBrowserModes } from '@dg-agent/agent-browser';
 
 function isValidHttpUrl(value: string): boolean {
   try {

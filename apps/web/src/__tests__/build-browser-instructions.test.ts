@@ -7,8 +7,10 @@ import {
   type SourceType,
 } from '@dg-agent/core';
 import type { TurnToolCallSummary } from '@dg-agent/runtime';
-import { createBuildBrowserInstructions } from './build-browser-instructions.js';
-import type { BrowserInstructionSettings } from './build-browser-instructions.js';
+import {
+  createBuildBrowserInstructions,
+  type BrowserInstructionSettings,
+} from '@dg-agent/agent-browser';
 
 function makeSettings(overrides?: Partial<BrowserInstructionSettings>): BrowserInstructionSettings {
   return {

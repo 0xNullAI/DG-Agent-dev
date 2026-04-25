@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@dg-agent/agent-browser": "0.1.0",
     "@dg-agent/audio-browser": "0.1.0",
     "@dg-agent/bridge": "0.1.0",
     "@dg-agent/client": "0.1.0",
