@@ -81,6 +81,24 @@ export class OpenAiHttpLlmClient implements LlmClient {
 
   private async runChatCompletionsTurn(input: LlmTurnInput): Promise<LlmTurnResult> {
     const streaming = typeof input.onTextDelta === 'function';
+    const requestBody = {
+      model: this.config.model,
+      temperature: this.config.temperature,
+      thinking: isDeepSeekModel(this.config) ? { type: 'disabled' } : undefined,
+      messages: toChatMessages(
+        input.conversation ?? toConversationItems(input.session),
+        input.instructions,
+        { includeReasoningContent: shouldIncludeReasoningContent(this.config) },
+      ),
+      tools:
+        input.tools.length > 0
+          ? input.tools.map((tool) => toChatTool(tool, this.config.useStrict))
+          : undefined,
+      tool_choice: input.tools.length > 0 ? 'auto' : undefined,
+      parallel_tool_calls: input.tools.length > 0 ? true : undefined,
+      stream: streaming || undefined,
+    };
+    console.debug('[LLM] chat/completions request', this.config.baseUrl, requestBody);
     const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: input.abortSignal,
@@ -88,27 +106,13 @@ export class OpenAiHttpLlmClient implements LlmClient {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: this.config.model,
-        temperature: this.config.temperature,
-        thinking: isDeepSeekModel(this.config) ? { type: 'disabled' } : undefined,
-        messages: toChatMessages(
-          input.conversation ?? toConversationItems(input.session),
-          input.instructions,
-          { includeReasoningContent: shouldIncludeReasoningContent(this.config) },
-        ),
-        tools:
-          input.tools.length > 0
-            ? input.tools.map((tool) => toChatTool(tool, this.config.useStrict))
-            : undefined,
-        tool_choice: input.tools.length > 0 ? 'auto' : undefined,
-        parallel_tool_calls: input.tools.length > 0 ? true : undefined,
-        stream: streaming || undefined,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      throw new Error(`模型服务 HTTP 错误 ${response.status}: ${await response.text()}`);
+      const errorText = await response.text();
+      console.error('[LLM] chat/completions error', response.status, errorText, requestBody);
+      throw new Error(`模型服务 HTTP 错误 ${response.status}: ${errorText}`);
     }
 
     if (streaming && input.onTextDelta) {
