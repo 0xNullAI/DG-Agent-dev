@@ -298,12 +298,15 @@ function AdvancedSection({ children }: { children: React.ReactNode }) {
         onClick={() => setOpen((prev) => !prev)}
       >
         <h3 className="settings-card-legend mb-0">高级选项</h3>
-        <ChevronDown
-          className={cn(
-            'h-4 w-4 text-[var(--text-faint)] transition-transform duration-200',
-            open && 'rotate-180',
-          )}
-        />
+        <div className="flex items-center gap-1">
+          <span className="text-[12px] text-[var(--text-faint)]">{open ? '收起' : '展开'}</span>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 text-[var(--text-faint)] transition-transform duration-200',
+              open && 'rotate-180',
+            )}
+          />
+        </div>
       </button>
       {open && <div className="mt-3 space-y-3">{children}</div>}
     </section>
