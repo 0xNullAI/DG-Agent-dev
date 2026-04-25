@@ -57,7 +57,7 @@ const providerSettingsSchema = z.object({
   useStrict: z.boolean(),
 });
 
-export const FREE_TRIAL_PROXY_URL = 'https://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
+export const FREE_TRIAL_PROXY_URL = 'https://ai.071129.xyz';
 
 export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
@@ -193,7 +193,7 @@ export function normalizeProviderSettings(input: ProviderSettings): ProviderSett
       break;
     case 'free':
       normalized.baseUrl = FREE_TRIAL_PROXY_URL + '/v1';
-      normalized.model = 'deepseek-v4-flash';
+      normalized.model = 'LongCat-Flash-Chat';
       normalized.endpoint = 'chat/completions';
       normalized.useStrict = false;
       break;
@@ -216,7 +216,7 @@ export function resolveProviderRuntimeSettings(input: ProviderSettings): Provide
     return {
       ...normalized,
       apiKey: 'free',
-      model: 'deepseek-v4-flash',
+      model: 'LongCat-Flash-Chat',
       baseUrl: FREE_TRIAL_PROXY_URL + '/v1',
       endpoint: 'chat/completions',
       useStrict: false,
