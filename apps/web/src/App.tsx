@@ -5,9 +5,9 @@ import {
   type MessageOrigin,
 } from '@dg-agent/bridge';
 import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core';
-import { BrowserSafetyGuard } from '@dg-agent/safety-browser';
-import { applyTheme, subscribeThemeChanges } from '@dg-agent/theme-browser';
-import type { UpdateCheckerStatus } from '@dg-agent/update-browser';
+import { BrowserSafetyGuard } from './services/safety-guard.js';
+import { applyTheme, subscribeThemeChanges } from './services/theme.js';
+import type { UpdateCheckerStatus } from './services/update-checker.js';
 import { X } from 'lucide-react';
 import { BUILTIN_PROMPT_PRESETS } from '@dg-agent/runtime';
 import { ChatPanel } from './components/ChatPanel.js';

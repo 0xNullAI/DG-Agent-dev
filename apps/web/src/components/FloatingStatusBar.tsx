@@ -1,4 +1,4 @@
-import type { UpdateCheckerStatus } from '@dg-agent/update-browser';
+import type { UpdateCheckerStatus } from '../services/update-checker.js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

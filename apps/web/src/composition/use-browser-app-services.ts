@@ -24,7 +24,7 @@ import {
   BrowserSessionTraceStore,
   type BrowserAppSettings,
 } from '@dg-agent/storage-browser';
-import { BrowserUpdateChecker } from '@dg-agent/update-browser';
+import { BrowserUpdateChecker } from '../services/update-checker.js';
 import { BrowserWaveformLibrary } from '@dg-agent/waveforms';
 import type { AgentClient } from '@dg-agent/client';
 import { createBrowserAgentClient, describeBrowserModes } from './create-browser-agent-client.js';

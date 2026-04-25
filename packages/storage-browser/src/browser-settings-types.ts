@@ -3,7 +3,8 @@ import type { ModelContextStrategy } from '@dg-agent/core';
 import type { BrowserPermissionMode } from '@dg-agent/permissions';
 import type { SavedPromptPreset } from '@dg-agent/runtime';
 import type { ProviderId, ProviderSettings } from '@dg-agent/providers-catalog';
-import type { ThemeMode } from '@dg-agent/theme-browser';
+
+export type ThemeMode = 'auto' | 'dark' | 'light';
 
 export interface StorageLike {
   getItem(key: string): string | null;
