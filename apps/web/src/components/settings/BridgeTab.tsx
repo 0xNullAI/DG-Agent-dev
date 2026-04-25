@@ -8,8 +8,6 @@ import { parseCommaSeparated } from '../../utils/ui-formatters.js';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
 
-type BridgeConnector = 'qq' | 'telegram';
-
 function formatCommaSeparatedInput(values: string[]): string {
   return values.join(', ');
 }

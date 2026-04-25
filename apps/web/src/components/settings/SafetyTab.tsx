@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
+import React, { useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { Input } from '@/components/ui/input';
@@ -179,8 +180,7 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
         </div>
       </section>
 
-      <section className="settings-row-card">
-        <h3 className="settings-card-legend">工具调用安全限制</h3>
+      <AdvancedSection>
         <label htmlFor="max-tool-iterations" className="settings-inline-field">
           <SettingLabel>单轮对话交互轮数上限</SettingLabel>
           <ToolLimitField
@@ -263,7 +263,7 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             }
           />
         </div>
-      </section>
+      </AdvancedSection>
     </div>
   );
 }
@@ -288,6 +288,28 @@ function ToolLimitField({
   );
 }
 
+function AdvancedSection({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="settings-row-card">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between text-left"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <h3 className="settings-card-legend mb-0">高级选项</h3>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 text-[var(--text-faint)] transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      {open && <div className="mt-3 space-y-3">{children}</div>}
+    </section>
+  );
+}
+
 function ConfigNumberField({
   id,
   value,
@@ -301,11 +323,13 @@ function ConfigNumberField({
   max: number;
   onChange: (value: number) => void;
 }) {
-  const [draftValue, setDraftValue] = useState(() => String(value));
+  const [draftValue, setDraftValue] = useState(String(value));
+  const [prevValue, setPrevValue] = useState(value);
 
-  useEffect(() => {
+  if (prevValue !== value) {
+    setPrevValue(value);
     setDraftValue(String(value));
-  }, [value]);
+  }
 
   function commit(nextDraftValue: string) {
     const digitsOnly = nextDraftValue.replace(/\D+/g, '');

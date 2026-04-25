@@ -43,7 +43,6 @@ import {
   buildConversationItems,
   collectTurnToolCalls,
   createTurnState,
-  safeStringify,
   type TurnState,
   type TurnToolCallSummary,
 } from './runtime-turn-state.js';
