@@ -1,5 +1,5 @@
 import { createStore, del, get, set, type UseStore } from 'idb-keyval';
-import type { SessionTraceStore } from '@dg-agent/contracts';
+import type { SessionTraceStore } from '@dg-agent/core';
 import type { RuntimeTraceEntry } from '@dg-agent/core';
 import { SESSION_TRACE_KEY_PREFIX } from './browser-settings-constants.js';
 

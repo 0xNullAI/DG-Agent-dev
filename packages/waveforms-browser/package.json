@@ -6,7 +6,6 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "@dg-agent/contracts": "0.1.0",
     "@dg-agent/core": "0.1.0",
     "@dg-agent/waveforms-basic": "0.1.0",
     "fflate": "^0.8.2",

@@ -1,9 +1,4 @@
-import type {
-  DeviceClient,
-  Logger,
-  PermissionService,
-  SessionTraceStore,
-} from '@dg-agent/contracts';
+import type { DeviceClient, Logger, PermissionService, SessionTraceStore } from '@dg-agent/core';
 import {
   isDeviceToolName,
   type ActionContext,

@@ -1,4 +1,4 @@
-import type { SessionStore } from '@dg-agent/contracts';
+import type { SessionStore } from '@dg-agent/core';
 import type { SessionSnapshot } from '@dg-agent/core';
 
 export class InMemorySessionStore implements SessionStore {

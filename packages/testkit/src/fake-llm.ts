@@ -1,4 +1,4 @@
-import type { LlmClient, LlmTurnInput, LlmTurnResult } from '@dg-agent/contracts';
+import type { LlmClient, LlmTurnInput, LlmTurnResult } from '@dg-agent/core';
 import type { ToolCall } from '@dg-agent/core';
 
 function nextToolCall(name: string, args: Record<string, unknown>): ToolCall {

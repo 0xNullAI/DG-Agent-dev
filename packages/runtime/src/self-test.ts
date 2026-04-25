@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import assert from 'node:assert/strict';
-import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/contracts';
+import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/core';
 import { createDefaultPolicyRules } from './default-policies.js';
 import {
   createEmptyDeviceState,

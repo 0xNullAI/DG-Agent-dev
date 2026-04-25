@@ -1,4 +1,4 @@
-import type { LlmClient, LlmTurnInput, LlmTurnResult } from '@dg-agent/contracts';
+import type { LlmClient, LlmTurnInput, LlmTurnResult } from '@dg-agent/core';
 import type { ToolCall } from '@dg-agent/core';
 import type { ProviderEndpoint } from '@dg-agent/providers-catalog';
 import { z } from 'zod';

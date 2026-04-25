@@ -1,4 +1,4 @@
-import type { LlmConversationItem } from '@dg-agent/contracts';
+import type { LlmConversationItem } from '@dg-agent/core';
 import type { ModelContextStrategy, SessionSnapshot, ToolCall } from '@dg-agent/core';
 import { REPLY_ABORTED_NOTE, TOOL_LOOP_EXHAUSTED_MESSAGE } from './runtime-errors.js';
 import type { ToolCallConfig } from './tool-call-config.js';

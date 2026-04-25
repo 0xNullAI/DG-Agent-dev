@@ -1,4 +1,4 @@
-import type { DeviceClient } from '@dg-agent/contracts';
+import type { DeviceClient } from '@dg-agent/core';
 import {
   createEmptyDeviceState,
   type DeviceCommand,

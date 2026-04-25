@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentClient } from '@dg-agent/client';
-import type { PermissionRequest } from '@dg-agent/contracts';
+import type { PermissionRequest } from '@dg-agent/core';
 import {
   createEmptyDeviceState,
   createMessage,

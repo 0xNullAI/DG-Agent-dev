@@ -1,5 +1,5 @@
 import { createStore, del, entries, get, set, type UseStore } from 'idb-keyval';
-import type { SessionStore } from '@dg-agent/contracts';
+import type { SessionStore } from '@dg-agent/core';
 import type { SessionSnapshot } from '@dg-agent/core';
 import { SESSION_KEY_PREFIX } from './browser-settings-constants.js';
 

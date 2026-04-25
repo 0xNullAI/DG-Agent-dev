@@ -1,6 +1,6 @@
 import { strFromU8, unzipSync } from 'fflate';
 import { createStore, get, set, type UseStore } from 'idb-keyval';
-import type { WaveformLibrary } from '@dg-agent/contracts';
+import type { WaveformLibrary } from '@dg-agent/core';
 import type { WaveFrame, WaveformDefinition } from '@dg-agent/core';
 import { createBasicWaveformLibrary } from '@dg-agent/waveforms-basic';
 import { z } from 'zod';

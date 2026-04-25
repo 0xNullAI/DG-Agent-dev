@@ -7,7 +7,7 @@ import type {
   SessionStore,
   SessionTraceStore,
   WaveformLibrary,
-} from '@dg-agent/contracts';
+} from '@dg-agent/core';
 import {
   createEmptyDeviceState,
   createMessage,

@@ -1,5 +1,5 @@
 import type { AgentClient } from '@dg-agent/client';
-import type { PermissionService } from '@dg-agent/contracts';
+import type { PermissionService } from '@dg-agent/core';
 
 export type BridgePlatform = 'qq' | 'telegram';
 export type BridgePermissionMode = 'confirm' | 'allow-all';

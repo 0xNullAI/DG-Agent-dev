@@ -1,4 +1,4 @@
-import type { LlmConversationItem } from '@dg-agent/contracts';
+import type { LlmConversationItem } from '@dg-agent/core';
 import type { SessionSnapshot, ToolDefinition, ToolCall } from '@dg-agent/core';
 import { repairJson } from './repair-json.js';
 import { strictify, widenWithNull } from './schema-utils.js';

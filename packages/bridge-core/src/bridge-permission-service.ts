@@ -1,4 +1,4 @@
-import type { PermissionRequest } from '@dg-agent/contracts';
+import type { PermissionRequest } from '@dg-agent/core';
 import type { PermissionDecision } from '@dg-agent/core';
 import { getBridgePlatform, requestPermissionRemote } from './bridge-utils.js';
 import type { BridgePermissionServiceOptions } from './bridge-types.js';

@@ -8,7 +8,7 @@ import type {
   SessionStore,
   SessionTraceStore,
   WaveformLibrary,
-} from '@dg-agent/contracts';
+} from '@dg-agent/core';
 import { getWebBluetoothAvailability } from '@dg-agent/device-webbluetooth';
 import { BrowserPermissionService } from '@dg-agent/permissions-browser';
 import { resolveProviderRuntimeSettings } from '@dg-agent/providers-catalog';

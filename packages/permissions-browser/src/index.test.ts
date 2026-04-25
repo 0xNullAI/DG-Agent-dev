@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowserPermissionService, TIMED_PERMISSION_WINDOW_MS } from './index.js';
-import type { PermissionRequest } from '@dg-agent/contracts';
+import type { PermissionRequest } from '@dg-agent/core';
 
 function makeRequest(toolName = 'adjust_strength'): PermissionRequest {
   return {

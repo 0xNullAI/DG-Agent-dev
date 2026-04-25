@@ -1,4 +1,4 @@
-import type { DeviceClient } from '@dg-agent/contracts';
+import type { DeviceClient } from '@dg-agent/core';
 import type { DeviceCommand, DeviceCommandResult } from '@dg-agent/core';
 
 export class DeviceCommandQueue {

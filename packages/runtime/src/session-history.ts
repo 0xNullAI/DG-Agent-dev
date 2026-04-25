@@ -1,4 +1,4 @@
-import type { LlmConversationItem } from '@dg-agent/contracts';
+import type { LlmConversationItem } from '@dg-agent/core';
 import {
   createMessage,
   type ConversationMessage,

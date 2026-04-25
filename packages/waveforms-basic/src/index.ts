@@ -1,4 +1,4 @@
-import type { WaveformLibrary } from '@dg-agent/contracts';
+import type { WaveformLibrary } from '@dg-agent/core';
 import type { WaveformDefinition } from '@dg-agent/core';
 
 const BUILTIN_WAVEFORMS: WaveformDefinition[] = [

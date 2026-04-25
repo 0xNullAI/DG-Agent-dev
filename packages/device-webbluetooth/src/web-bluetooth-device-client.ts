@@ -1,4 +1,4 @@
-import type { DeviceClient } from '@dg-agent/contracts';
+import type { DeviceClient } from '@dg-agent/core';
 import type { DeviceCommand, DeviceCommandResult, DeviceState } from '@dg-agent/core';
 import { COYOTE_REQUEST_DEVICE_OPTIONS } from './constants.js';
 import type {

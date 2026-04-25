@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/contracts';
+import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/core';
 import { AgentRuntime } from './agent-runtime.js';
 import { createDefaultPolicyRules } from './default-policies.js';
 import { PolicyEngine } from './policy-engine.js';

@@ -1,4 +1,4 @@
-import type { WaveformLibrary } from '@dg-agent/contracts';
+import type { WaveformLibrary } from '@dg-agent/core';
 import type { DeviceCommand, ToolCall, ToolDefinition, ToolExecutionPlan } from '@dg-agent/core';
 import { z } from 'zod';
 

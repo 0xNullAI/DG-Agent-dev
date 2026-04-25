@@ -1,4 +1,4 @@
-import type { PermissionService, PermissionRequest } from '@dg-agent/contracts';
+import type { PermissionService, PermissionRequest } from '@dg-agent/core';
 import type { PermissionDecision } from '@dg-agent/core';
 
 export class StaticPermissionService implements PermissionService {

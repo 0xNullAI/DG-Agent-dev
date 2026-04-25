@@ -1,4 +1,4 @@
-import type { SessionTraceStore } from '@dg-agent/contracts';
+import type { SessionTraceStore } from '@dg-agent/core';
 import type { RuntimeTraceEntry } from '@dg-agent/core';
 
 const TRACE_LIMIT = 500;
