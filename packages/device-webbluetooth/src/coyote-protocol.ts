@@ -442,25 +442,27 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     this.state.strengthA = strengthA;
     this.state.strengthB = strengthB;
 
-    if (this.v2WaveAChar) {
-      const next = this.advanceWave('A');
-      if (next.int[3] >= 101) {
-        await this.v2WaveAChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
-      } else {
-        const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
-        await this.v2WaveAChar.writeValueWithoutResponse(
-          this.encodeV2Wave(params.x, params.y, params.z),
-        );
-      }
-    }
-
+    // Per protocol docs: PWM_B34 (v2WaveBChar, 0x1506) carries A-channel wave data;
+    // PWM_A34 (v2WaveAChar, 0x1505) carries B-channel wave data — names are intentionally reversed.
     if (this.v2WaveBChar) {
-      const next = this.advanceWave('B');
+      const next = this.advanceWave('A');
       if (next.int[3] >= 101) {
         await this.v2WaveBChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
       } else {
         const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
         await this.v2WaveBChar.writeValueWithoutResponse(
+          this.encodeV2Wave(params.x, params.y, params.z),
+        );
+      }
+    }
+
+    if (this.v2WaveAChar) {
+      const next = this.advanceWave('B');
+      if (next.int[3] >= 101) {
+        await this.v2WaveAChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
+      } else {
+        const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
+        await this.v2WaveAChar.writeValueWithoutResponse(
           this.encodeV2Wave(params.x, params.y, params.z),
         );
       }
@@ -549,12 +551,12 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
   private buildBF(limitA: number, limitB: number): Uint8Array {
     const buffer = new Uint8Array(7);
     buffer[0] = 0xbf;
-    buffer[1] = this.clamp(limitA, 0, 200);
-    buffer[2] = this.clamp(limitB, 0, 200);
-    buffer[3] = 160;
-    buffer[4] = 160;
-    buffer[5] = 0;
-    buffer[6] = 0;
+    buffer[1] = this.clamp(limitA, 0, 200); // A通道强度软上限
+    buffer[2] = this.clamp(limitB, 0, 200); // B通道强度软上限
+    buffer[3] = 160; // AB通道波形频率平衡参数A (0-255)
+    buffer[4] = 160; // AB通道波形频率平衡参数B (0-255)
+    buffer[5] = 0; // AB通道波形强度平衡参数A (0-255)
+    buffer[6] = 0; // AB通道波形强度平衡参数B (0-255)
     return buffer;
   }
 
@@ -575,14 +577,14 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     return new Uint8Array([(packed >> 16) & 0xff, (packed >> 8) & 0xff, packed & 0xff]);
   }
 
-  private decodeV3Freq(encoded: number): number {
+  private decodeV3FreqToMs(encoded: number): number {
     if (encoded <= 100) return encoded;
     if (encoded <= 200) return (encoded - 100) * 5 + 100;
     return (encoded - 200) * 10 + 600;
   }
 
   private waveFrameToV2(freq: number, intensity: number): { x: number; y: number; z: number } {
-    const periodMs = this.decodeV3Freq(freq);
+    const periodMs = this.decodeV3FreqToMs(freq);
     const x = this.clamp(Math.round(Math.sqrt(periodMs / 1000) * 15), 1, 31);
     return {
       x,
