@@ -23,8 +23,7 @@ export function shouldClearStreamingForEvent(event: RuntimeEvent): boolean {
   return (
     event.type === 'session-updated' ||
     event.type === 'assistant-message-completed' ||
-    event.type === 'assistant-message-aborted' ||
-    event.type === 'device-command-executed'
+    event.type === 'assistant-message-aborted'
   );
 }
 
