@@ -65,13 +65,11 @@ export class BrowserWaveformLibrary implements WaveformLibrary {
         const entries = unzipSync(bytes);
         for (const [entryName, content] of Object.entries(entries)) {
           if (!/\.pulse$/i.test(entryName)) continue;
-          const waveform = createImportedWaveform(entryName, parsePulseText(strFromU8(content)));
-          imported.push(waveform);
+          imported.push(createImportedWaveform(entryName, parsePulseText(strFromU8(content))));
         }
       } else {
         const text = new TextDecoder().decode(bytes);
-        const waveform = createImportedWaveform(file.name, parsePulseText(text));
-        imported.push(waveform);
+        imported.push(createImportedWaveform(file.name, parsePulseText(text)));
       }
     }
 
@@ -95,19 +93,20 @@ export class BrowserWaveformLibrary implements WaveformLibrary {
   }
 }
 
-function createImportedWaveform(fileName: string, frames: WaveFrame[]): WaveformDefinition {
-  const baseName = fileName.replace(/\.(pulse|zip)$/i, '');
-  const safeId = `custom-${
-    baseName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'wave'
-  }-${Date.now().toString(36)}`;
+function createImportedWaveform(fileName: string, parsed: ParsedPulse): WaveformDefinition {
+  const fallbackName = fileName.replace(/\.(pulse|zip)$/i, '');
+  // Prefer the descriptive name embedded in the .pulse file (often Chinese
+  // like "水滴" or "海浪"); fall back to the file name when missing.
+  const displayName = parsed.name || fallbackName;
+  const idSeed = displayName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const safeId = `custom-${idSeed || 'wave'}-${Date.now().toString(36)}`;
   return {
     id: safeId,
-    name: baseName,
-    description: '从 Dungeonlab+pulse 文件导入',
-    frames,
+    name: displayName,
+    frames: parsed.frames,
   };
 }
 
@@ -155,7 +154,13 @@ interface Section {
   duration: number;
 }
 
-function parsePulseText(data: string): WaveFrame[] {
+interface ParsedPulse {
+  /** Embedded waveform name from the file (the part before "="); empty if missing. */
+  name: string;
+  frames: WaveFrame[];
+}
+
+function parsePulseText(data: string): ParsedPulse {
   const trimmed = data.trim();
   if (!/^Dungeonlab\+pulse:/i.test(trimmed)) {
     throw new Error("脉冲格式无效，必须以 'Dungeonlab+pulse:' 开头");
@@ -173,6 +178,7 @@ function parsePulseText(data: string): WaveFrame[] {
     throw new Error("脉冲格式无效，缺少 '=' 分隔符");
   }
 
+  const embeddedName = firstPart.substring(0, equalIndex).trim();
   const sections: Section[] = [];
   const firstSectionData = firstPart.substring(equalIndex + 1);
   const allSectionData = [firstSectionData, ...sectionParts.slice(1)];
@@ -265,5 +271,5 @@ function parsePulseText(data: string): WaveFrame[] {
     throw new Error('解析后的波形为空');
   }
 
-  return frames;
+  return { name: embeddedName, frames };
 }
