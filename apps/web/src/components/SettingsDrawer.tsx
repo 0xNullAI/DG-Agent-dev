@@ -102,7 +102,7 @@ export const SETTINGS_NAV_ITEMS: Array<{
   {
     value: 'model-tool-logs',
     label: '模型日志',
-    description: '模型输出、工具调用和运行事件',
+    description: '永久保存的 LLM 请求与响应记录',
     icon: FileSearch,
     sections: {},
   },
