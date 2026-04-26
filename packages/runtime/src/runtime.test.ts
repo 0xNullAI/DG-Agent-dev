@@ -1240,4 +1240,73 @@ describe('AgentRuntime', () => {
     );
     expect(session.messages.some((message) => message.content.includes('[Timer due]'))).toBe(false);
   });
+
+  it('accepts legacy "waveform" arg name on the start tool', async () => {
+    class LegacyStartArgsLlm implements LlmClient {
+      async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
+        const hasToolOutput = input.conversation?.some(
+          (item) => item.kind === 'function_call_output',
+        );
+        return hasToolOutput
+          ? { assistantMessage: '老参数启动完成。' }
+          : {
+              assistantMessage: '使用老参数启动',
+              toolCalls: [
+                {
+                  id: 'tool-legacy-start',
+                  name: 'start',
+                  args: { channel: 'A', strength: 8, waveform: 'pulse_mid', loop: true },
+                },
+              ],
+            };
+      }
+    }
+
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new LegacyStartArgsLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+    await runtime.sendUserMessage({
+      sessionId: 'legacy-start',
+      text: '用老参数启动',
+      context: { sessionId: 'legacy-start', sourceType: 'cli', traceId: 'trace-legacy-start' },
+    });
+    const session = await runtime.getSessionSnapshot('legacy-start');
+    expect(session.deviceState.currentWaveA).toBe('pulse_mid');
+    expect(session.deviceState.strengthA).toBe(8);
+  });
+
+  it('accepts legacy "duration_ms" arg name on the burst tool', async () => {
+    class LegacyBurstArgsLlm implements LlmClient {
+      async runTurn() {
+        return {
+          assistantMessage: '使用老参数 burst',
+          toolCalls: [
+            {
+              id: 'tool-legacy-burst',
+              name: 'burst',
+              args: { channel: 'A', strength: 35, duration_ms: 800 },
+            },
+          ],
+        };
+      }
+    }
+
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ strengthA: 12, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+      llm: new LegacyBurstArgsLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: { maxToolIterations: 1, burstRequiresActiveChannel: false },
+    });
+    await runtime.sendUserMessage({
+      sessionId: 'legacy-burst',
+      text: '用老参数 burst',
+      context: { sessionId: 'legacy-burst', sourceType: 'cli', traceId: 'trace-legacy-burst' },
+    });
+    const session = await runtime.getSessionSnapshot('legacy-burst');
+    expect(session.deviceState.strengthA).toBe(35);
+  });
 });
