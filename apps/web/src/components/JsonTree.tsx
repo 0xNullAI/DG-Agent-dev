@@ -27,12 +27,8 @@ function JsonNode({
   if (value === null) return <span className="text-[var(--text-faint)]">null</span>;
   if (value === undefined) return <span className="text-[var(--text-faint)]">undefined</span>;
 
-  if (typeof value === 'boolean') {
-    return <span className="text-[#c97cff]">{String(value)}</span>;
-  }
-
-  if (typeof value === 'number') {
-    return <span className="text-[#7cb7ff]">{value}</span>;
+  if (typeof value === 'boolean' || typeof value === 'number') {
+    return <span className="text-[var(--text)]">{String(value)}</span>;
   }
 
   if (typeof value === 'string') {
@@ -49,20 +45,20 @@ function JsonNode({
     );
   }
 
-  return <span>{String(value)}</span>;
+  return <span className="text-[var(--text)]">{String(value)}</span>;
 }
 
 function StringNode({ value }: { value: string }) {
   if (value.length <= STRING_INLINE_LIMIT && !value.includes('\n')) {
-    return <span className="text-[#7be3a4] break-all">"{value}"</span>;
+    return <span className="text-[var(--text)] break-all">"{value}"</span>;
   }
   return (
     <details className="inline align-top">
-      <summary className="cursor-pointer text-[#7be3a4] hover:text-[#a3f0bd] inline">
+      <summary className="cursor-pointer text-[var(--text)] hover:text-[var(--accent)] inline">
         "{value.slice(0, VALUE_PREVIEW_LIMIT)}…"
         <span className="ml-1 text-[10px] text-[var(--text-faint)]">({value.length} chars)</span>
       </summary>
-      <pre className="mt-1 ml-4 whitespace-pre-wrap break-words rounded-[4px] bg-[var(--bg-soft)] px-2 py-1 text-[#7be3a4]">
+      <pre className="mt-1 ml-4 whitespace-pre-wrap break-words rounded-[4px] bg-[var(--bg-soft)] px-2 py-1 text-[var(--text)]">
         {value}
       </pre>
     </details>
@@ -78,10 +74,10 @@ function ArrayNode({
   depth: number;
   forceOpen?: boolean;
 }) {
-  if (value.length === 0) return <span>[]</span>;
+  if (value.length === 0) return <span className="text-[var(--text)]">[]</span>;
   return (
     <details open={forceOpen}>
-      <summary className="cursor-pointer text-[var(--text-soft)] hover:text-[var(--text)] select-none">
+      <summary className="cursor-pointer text-[var(--text)] hover:text-[var(--accent)] select-none">
         Array <span className="text-[var(--text-faint)]">[{value.length}]</span>
       </summary>
       <div className="border-l border-[var(--surface-border)] pl-3 ml-1">
@@ -108,16 +104,16 @@ function ObjectNode({
   forceOpen?: boolean;
 }) {
   const keys = Object.keys(value);
-  if (keys.length === 0) return <span>{'{}'}</span>;
+  if (keys.length === 0) return <span className="text-[var(--text)]">{'{}'}</span>;
   return (
     <details open={forceOpen}>
-      <summary className="cursor-pointer text-[var(--text-soft)] hover:text-[var(--text)] select-none">
+      <summary className="cursor-pointer text-[var(--text)] hover:text-[var(--accent)] select-none">
         Object <span className="text-[var(--text-faint)]">{`{${keys.length}}`}</span>
       </summary>
       <div className="border-l border-[var(--surface-border)] pl-3 ml-1">
         {keys.map((key) => (
           <div key={key} className="flex gap-2">
-            <span className="text-[#ffb86c] shrink-0">{key}:</span>
+            <span className="text-[var(--text)] font-medium shrink-0">{key}:</span>
             <div className="min-w-0 flex-1">
               <JsonNode
                 value={value[key]}

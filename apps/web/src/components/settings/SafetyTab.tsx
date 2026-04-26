@@ -27,7 +27,7 @@ function clamp(value: number, min: number, max: number): number {
 
 const STRENGTH_MIN = 0;
 const STRENGTH_MAX = 200;
-const STRENGTH_STEP = 5;
+const STRENGTH_STEP = 1;
 const TOOL_LIMIT_MIN = 1;
 const TOOL_LIMIT_MAX = 20;
 const COLD_START_MIN = 0;
