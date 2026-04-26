@@ -156,10 +156,10 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
             ))}
           </div>
 
-          <SettingLabel className="inline-flex items-center gap-1.5">
-            上下文策略
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <SettingLabel>上下文策略</SettingLabel>
             <HelpTip text="策略越复杂，模型可以记住越长的对话历史，但工具调用的稳定性可能会下降，请按需选择。" />
-          </SettingLabel>
+          </span>
           <div className="settings-inline-field-control">
             <SettingSelect
               value={settingsDraft.modelContextStrategy}
