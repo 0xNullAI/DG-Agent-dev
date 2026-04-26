@@ -11,7 +11,7 @@
     "@dg-agent/client": "0.1.0",
     "@dg-agent/core": "0.1.0",
     "@dg-agent/device-webbluetooth": "0.1.0",
-    "@dg-agent/permissions": "0.1.0",
+    "@dg-agent/permissions-browser": "0.1.0",
     "@dg-agent/providers-catalog": "0.1.0",
     "@dg-agent/providers-openai-http": "0.1.0",
     "@dg-agent/runtime": "0.1.0",

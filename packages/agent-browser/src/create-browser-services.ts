@@ -19,7 +19,7 @@ import type {
   SessionSnapshot,
 } from '@dg-agent/core';
 import { CoyoteProtocolAdapter, WebBluetoothDeviceClient } from '@dg-agent/device-webbluetooth';
-import { BrowserPermissionService } from '@dg-agent/permissions';
+import { BrowserPermissionService } from '@dg-agent/permissions-browser';
 import {
   BrowserSessionStore,
   BrowserSessionTraceStore,

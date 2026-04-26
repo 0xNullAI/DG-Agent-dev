@@ -29,7 +29,7 @@
 - `packages/providers-openai-http`、`packages/providers-catalog`：模型适配层
 - `packages/bridge`：桥接核心 + QQ/Telegram 适配器
 - `packages/storage-browser`：浏览器状态持久化
-- `packages/permissions`、`packages/waveforms`：权限/波形（含 basic + browser 两种实现）
+- `packages/permissions-browser`、`packages/waveforms`：权限/波形（浏览器实现）
 
 ### 主要分层
 
@@ -58,8 +58,8 @@
   - 当前已拆为 types / queue / permission / manager / utils / adapters
 - `packages/device-webbluetooth` / `packages/providers-*`
   - 分别承载平台设备适配与模型提供方适配
-- `packages/permissions` / `packages/waveforms`
-  - 各自包含 basic（Node 兼容默认实现）+ browser（带浏览器副作用的实现）
+- `packages/permissions-browser` / `packages/waveforms`
+  - 浏览器实现（带 DOM/IndexedDB 副作用，调用方需在浏览器环境）
 
 ### 当前未交付，但保留边界
 
@@ -161,14 +161,12 @@ packages/
   client/                  AgentClient 抽象（embedded / HTTP）+ REST 路由契约
   core/                    领域模型 + 共享类型 + 接口契约（合并自 contracts）
   device-webbluetooth/     浏览器蓝牙设备适配
-  permissions/             基础 + 浏览器权限服务（合并自 permissions-basic + permissions-browser）
+  permissions-browser/     浏览器权限服务（带定时授权 + UI 提示）
   providers-catalog/       Provider 元数据与归一化
   providers-openai-http/   OpenAI / 兼容 HTTP Provider 适配
-  runtime/                 核心运行时（含 prompt 预设，合并自 prompts-basic）
+  runtime/                 核心运行时（含 prompt 预设）
   storage-browser/         浏览器设置 / 会话存储
-  testkit/                 Fake adapters / fixtures
   waveforms/               内置波形库 + 浏览器波形 IndexedDB 存储
-                           （合并自 waveforms-basic + waveforms-browser）
 
 aliyun-fc/                 阿里云 FC 免费代理函数（独立 CommonJS）
 docs/                      文档

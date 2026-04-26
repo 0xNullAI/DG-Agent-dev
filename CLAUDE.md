@@ -37,13 +37,11 @@ packages/
   providers-catalog/     — Provider registry (free proxy, Qwen, DeepSeek, etc.)
   bridge/                — Bridge manager, message queue, permission service,
                            QQ (OneBot/NapCat) and Telegram adapters
-  permissions/           — Permission services: BasicPermissionService (auto-allow)
-                           and BrowserPermissionService (timed grants + UI prompt)
-  waveforms/             — Built-in waveform definitions and BrowserWaveformLibrary
-                           (IndexedDB store, import/export)
+  permissions-browser/   — Browser permission service (timed grants + UI prompt)
+  waveforms/             — Built-in waveform definitions and browser waveform
+                           library (IndexedDB store, import/export)
   storage-browser/       — IndexedDB session store + localStorage settings
   audio-browser/         — DashScope ASR/TTS, browser SpeechRecognition/Synthesis
-  testkit/               — Fake device, LLM, permission for testing
 aliyun-fc/               — Aliyun FC serverless free proxy (CommonJS, separate)
 ```
 
@@ -89,23 +87,22 @@ The runtime's `runTurn()` loops: build instructions → call LLM → if tool cal
 
 Mixed by design — read the rule before adding a new package:
 
-- **No suffix** (`permissions`, `waveforms`, `bridge`): the package contains
-  a runtime-agnostic basic implementation alongside a runtime-specific one
-  (e.g. `BasicPermissionService` + `BrowserPermissionService`). Browser-only
-  side effects must be lazily contained inside class methods, never at the
-  module top level — Node.js consumers must be able to import the package
-  without triggering DOM / IndexedDB references.
-- **`-browser` / `-webbluetooth` suffix** (`storage-browser`, `audio-browser`,
-  `device-webbluetooth`, `agent-browser`): the package is a pure
-  browser-runtime implementation with no basic counterpart. Future Node.js
-  alternatives ship as separate packages (`storage-node`, `device-serial`,
-  `agent-node`, etc.) rather than being merged in.
+- **No suffix** (`waveforms`, `bridge`): contains a runtime-agnostic core
+  (Node-friendly) alongside a browser adapter, both in the same package.
+  Top-level module load must stay free of DOM / IndexedDB references so
+  Node consumers can import the package without exploding.
+- **`-browser` / `-webbluetooth` suffix** (`agent-browser`, `audio-browser`,
+  `device-webbluetooth`, `permissions-browser`, `storage-browser`): pure
+  browser-runtime implementation; no counterpart in the same package.
+  Future Node.js alternatives ship as separate packages (`storage-node`,
+  `permissions-node`, `device-serial`, `agent-node`, etc.) rather than
+  being merged in.
 - **`-http` / `-catalog` suffix** (`providers-openai-http`,
-  `providers-catalog`): describes a transport / role rather than a runtime;
-  reusable across runtimes.
+  `providers-catalog`): describes a transport or role rather than a
+  runtime; reusable across runtimes.
 
-When adding a new package, pick the suffix style that matches its category
-above. Do not introduce a third style.
+When adding a new package, pick the suffix style that matches its
+category above. Do not introduce a third style.
 
 ## UI Maintenance Notes
 
