@@ -4,6 +4,7 @@ import type { ModelLogTurn } from '../../services/model-log-store.js';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatTimestamp } from '../../utils/ui-formatters.js';
+import { JsonTree } from '../JsonTree.js';
 import { SettingToggle } from './SettingToggle.js';
 
 interface BridgeLogsTabProps {
@@ -67,9 +68,9 @@ function CollapsibleJson({
       <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-[var(--text-soft)] hover:text-[var(--text)]">
         {label}
       </summary>
-      <pre className="overflow-x-auto whitespace-pre-wrap break-words border-t border-[var(--surface-border)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-soft)]">
-        {JSON.stringify(data, null, 2)}
-      </pre>
+      <div className="overflow-x-auto border-t border-[var(--surface-border)] px-3 py-2 font-mono text-[11px] leading-relaxed text-[var(--text-soft)]">
+        <JsonTree value={data} defaultOpen />
+      </div>
     </details>
   );
 }
