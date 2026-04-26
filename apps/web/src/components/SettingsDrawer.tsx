@@ -282,6 +282,9 @@ export function SettingsWorkspace(props: SettingsDrawerProps) {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <h2>设置</h2>
+          <button type="button" onClick={onClose} aria-label="关闭设置">
+            <X className="h-4 w-4" />
+          </button>
         </header>
         <nav className="settings-mobile-directory-list" aria-label="设置分类">
           {SETTINGS_NAV_GROUPS.map((group) => (
