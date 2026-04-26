@@ -1,7 +1,7 @@
 export type ThemeMode = 'auto' | 'dark' | 'light';
-export type EffectiveTheme = 'dark' | 'light';
+type EffectiveTheme = 'dark' | 'light';
 
-export function getEffectiveTheme(mode: ThemeMode): EffectiveTheme {
+function getEffectiveTheme(mode: ThemeMode): EffectiveTheme {
   if (mode === 'auto') {
     if (
       typeof window !== 'undefined' &&

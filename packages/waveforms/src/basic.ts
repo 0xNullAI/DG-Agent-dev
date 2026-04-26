@@ -83,7 +83,7 @@ const BUILTIN_WAVEFORMS: WaveformDefinition[] = [
   },
 ];
 
-export class BasicWaveformLibrary implements WaveformLibrary {
+class BasicWaveformLibrary implements WaveformLibrary {
   private readonly byId = new Map(
     BUILTIN_WAVEFORMS.map((waveform) => [waveform.id, cloneWaveform(waveform)]),
   );

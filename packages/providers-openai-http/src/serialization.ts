@@ -152,7 +152,7 @@ export function normalizeOptionalContent(content: string | null | undefined): st
   return content ?? undefined;
 }
 
-export function serializeToolCallArgs(args: Record<string, unknown>): string {
+function serializeToolCallArgs(args: Record<string, unknown>): string {
   try {
     return JSON.stringify(args);
   } catch {

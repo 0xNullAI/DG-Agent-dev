@@ -155,7 +155,7 @@ interface Section {
   duration: number;
 }
 
-export function parsePulseText(data: string): WaveFrame[] {
+function parsePulseText(data: string): WaveFrame[] {
   const trimmed = data.trim();
   if (!/^Dungeonlab\+pulse:/i.test(trimmed)) {
     throw new Error("脉冲格式无效，必须以 'Dungeonlab+pulse:' 开头");

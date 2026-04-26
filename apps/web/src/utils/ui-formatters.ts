@@ -67,12 +67,6 @@ export function isBluetoothChooserCancelledError(error: unknown): boolean {
   return normalizedMessage.includes('User cancelled the requestDevice() chooser');
 }
 
-export function clampStrengthSetting(value: string): number {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 0;
-  return Math.max(0, Math.min(200, Math.round(parsed)));
-}
-
 export function parseCommaSeparated(value: string): string[] {
   return value
     .split(',')

@@ -39,7 +39,7 @@ export function normalizeSessionHistory(session: SessionSnapshot): boolean {
   return true;
 }
 
-export function findPreviousComparableMessage(
+function findPreviousComparableMessage(
   messages: ConversationMessage[],
 ): ConversationMessage | undefined {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -82,7 +82,7 @@ export function appendAssistantMessage(
   return message;
 }
 
-export function areAssistantMessagesEquivalent(
+function areAssistantMessagesEquivalent(
   left: ConversationMessage,
   right: ConversationMessage,
 ): boolean {
@@ -134,7 +134,7 @@ export function appendSkippedToolOutputs(
   }
 }
 
-export function isInternalSyntheticMessage(content: string): boolean {
+function isInternalSyntheticMessage(content: string): boolean {
   return (
     content.startsWith('[Timer due]') ||
     content.startsWith('[内部提醒]') ||

@@ -60,10 +60,6 @@ const MAX_ADJUST_STEP_HINT = 10;
 const MAX_BURST_DURATION_HINT_MS = 5_000;
 const DEFAULT_START_WAVEFORM_ID = 'pulse_mid';
 
-export function createDefaultToolRegistry(): ToolRegistry {
-  return createDefaultToolRegistryWithDeps({});
-}
-
 export interface DefaultToolRegistryDeps {
   waveformLibrary?: WaveformLibrary;
   toolDefinitionHints?: ToolDefinitionHints;
