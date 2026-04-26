@@ -100,12 +100,7 @@ export function ModelLogsTab({
   return (
     <div className="settings-panel-tab-content">
       <section className="settings-row-card">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="settings-card-legend !mb-0">模型日志</h3>
-          <Button variant="secondary" size="sm" onClick={onClear} disabled={turns.length === 0}>
-            清空日志（{turns.length}）
-          </Button>
-        </div>
+        <h3 className="settings-card-legend">模型日志</h3>
 
         <SettingToggle
           checked={enabled}
@@ -113,17 +108,10 @@ export function ModelLogsTab({
             setSettingsDraft((current) => ({ ...current, modelLogEnabled: checked }))
           }
           label="记录模型日志"
-          description="开启后，所有 LLM 请求和响应都会永久保存到本地，直到手动清空。关闭只是停止收集，已有记录会保留。"
         />
 
-        {!enabled && turns.length === 0 && (
-          <div className="settings-log-empty">请先开启「记录模型日志」开关</div>
-        )}
-
-        {enabled && turns.length === 0 && (
-          <div className="settings-log-empty">
-            还没有模型调用记录。下次和 AI 对话时，本回合的 LLM 请求和响应会出现在这里。
-          </div>
+        {turns.length === 0 && (
+          <div className="settings-log-empty">{enabled ? '暂无记录' : '未开启'}</div>
         )}
 
         {turns.length > 0 && (
@@ -148,15 +136,19 @@ export function ModelLogsTab({
                 </div>
 
                 <div className="mt-2 flex flex-col gap-2">
-                  {turn.request && (
-                    <CollapsibleJson label="📤 请求 (request)" data={turn.request} />
-                  )}
-                  {turn.response && (
-                    <CollapsibleJson label="📥 响应 (response)" data={turn.response} />
-                  )}
+                  {turn.request && <CollapsibleJson label="请求" data={turn.request} />}
+                  {turn.response && <CollapsibleJson label="响应" data={turn.response} />}
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {turns.length > 0 && (
+          <div className="flex justify-end pt-2">
+            <Button variant="secondary" size="sm" onClick={onClear}>
+              清空日志（{turns.length}）
+            </Button>
           </div>
         )}
       </section>
