@@ -18,8 +18,6 @@ function makeSettings(overrides?: Partial<BrowserInstructionSettings>): BrowserI
     savedPromptPresets: [],
     maxStrengthA: 100,
     maxStrengthB: 100,
-    maxAdjustStrengthCallsPerTurn: 5,
-    maxAdjustStrengthStep: 10,
     ...overrides,
   };
 }

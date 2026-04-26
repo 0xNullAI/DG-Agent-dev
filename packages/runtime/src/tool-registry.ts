@@ -68,7 +68,9 @@ export interface DefaultToolRegistryDeps {
 export interface ToolDefinitionHints {
   maxColdStartStrength?: number;
   maxAdjustStrengthStep?: number;
+  maxAdjustStrengthCallsPerTurn?: number;
   maxBurstDurationMs?: number;
+  maxBurstCallsPerTurn?: number;
 }
 
 export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps): ToolRegistry {
@@ -83,10 +85,20 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
     MAX_ADJUST_STEP_HINT,
     1,
   );
+  const maxAdjustCallsHint = normalizeToolDefinitionHint(
+    deps.toolDefinitionHints?.maxAdjustStrengthCallsPerTurn,
+    2,
+    1,
+  );
   const maxBurstDurationMsHint = normalizeToolDefinitionHint(
     deps.toolDefinitionHints?.maxBurstDurationMs,
     MAX_BURST_DURATION_HINT_MS,
     100,
+  );
+  const maxBurstCallsHint = normalizeToolDefinitionHint(
+    deps.toolDefinitionHints?.maxBurstCallsPerTurn,
+    1,
+    1,
   );
 
   registry.register({
@@ -101,15 +113,14 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
       return {
         name: 'start',
         description: [
-          '【启动工具】启动一个通道，同时设置初始强度和波形。',
-          '只在该通道当前处于停止状态、需要从零开始时使用。',
-          `冷启动建议：启动强度尽量控制在 0-${maxColdStartStrengthHint}；如果当前安全设置中的冷启动上限更低，会被策略层进一步压低。`,
-          '如果通道已经在运行，只想继续加一点请用 adjust_strength；只想切换波形请用 change_wave；想结束请用 stop。',
-          '完成一次 start 后，通常应该先描述结果并询问用户感受，不要在同一轮里马上连续追加多次强度。',
-          waveformDescription ? `可用波形：${waveformDescription}` : '',
+          '【启动通道】启动一个通道，同时设置初始强度和波形。',
+          '触发：通道当前停止，需要从零开始时使用。',
+          '不用：通道已运行 → 想加点强度用 adjust_strength，想换波形用 change_wave，想结束用 stop。',
+          `约束：单次启动强度上限 ${maxColdStartStrengthHint}（受安全设置约束），完成后先描述结果并询问感受，不要在同一回合连续追加多次强度。`,
+          waveformDescription ? `可用波形：${waveformDescription}。` : '',
         ]
           .filter(Boolean)
-          .join(' '),
+          .join('\n'),
         parameters: {
           type: 'object',
           properties: {
@@ -118,12 +129,12 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
               type: 'integer',
               minimum: 0,
               maximum: maxColdStartStrengthHint,
-              description: '启动时的初始强度（建议从 5-8 起步；实际冷启动上限受当前安全设置约束）',
+              description: `启动时的初始强度，范围 [0, ${maxColdStartStrengthHint}]。`,
             },
             waveformId: await buildWaveformIdParameter(deps.waveformLibrary),
             loop: {
               type: 'boolean',
-              description: '是否循环播放波形，默认 true',
+              description: '是否循环播放波形，默认 true。',
             },
           },
           required: ['channel', 'strength', 'waveformId'],
@@ -172,16 +183,17 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
     definition: {
       name: 'stop',
       description: [
-        '【停止工具】停止一个通道，或在不传 channel 时停止全部通道。',
-        '想结束输出、暂停刺激、或者用户表达“停一下 / 够了 / 关掉”时，应优先使用这个工具。',
-        '不要用 start(strength=0) 或其它变通方式代替 stop。',
-      ].join(' '),
+        '【停止通道】停止一个通道，省略 channel 则停止全部通道。',
+        '触发：用户表达"停一下/够了/关掉"，或需要结束输出时。',
+        '不用：start(strength=0) 或其他变通方式不能代替 stop。',
+        '约束：无次数上限。',
+      ].join('\n'),
       parameters: {
         type: 'object',
         properties: {
           channel: {
             ...channelParameter,
-            description: '要停止的通道；不传则停止全部通道',
+            description: '要停止的通道，省略则停止全部。',
           },
         },
       },
@@ -213,11 +225,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
     definition: {
       name: 'adjust_strength',
       description: [
-        '【强度调整工具】在不改变当前波形的前提下，相对调整一个通道的强度。',
-        '这是通道运行过程中唯一的强度微调入口，适合小步推进、轻微回落、边缘控制。',
-        '优先使用 +2、+3、-2、-3 这类细微变化；不要在同一轮里连续多次大幅加码。',
-        '如果同时还要切换波形，请配合 change_wave，而不是重复 start。',
-      ].join(' '),
+        '【调节强度】在不改变波形的前提下相对调整一个通道的强度。',
+        '触发：通道运行中，需要小步推进、轻微回落、边缘控制时使用。',
+        '不用：想换波形 → change_wave；通道未启动 → start。',
+        `约束：本回合最多调用 ${maxAdjustCallsHint} 次，单步幅度 ±${maxAdjustStrengthStepHint}，优先选小幅度（约 1/3 上限）做平稳推进，每次调整后停下来观察反馈。`,
+      ].join('\n'),
       parameters: {
         type: 'object',
         properties: {
@@ -226,7 +238,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
             type: 'integer',
             minimum: -maxAdjustStrengthStepHint,
             maximum: maxAdjustStrengthStepHint,
-            description: `本次变化量（正数增加，负数降低；建议保持在 ±${maxAdjustStrengthStepHint} 以内）`,
+            description: `本次变化量（正增负减），范围 [-${maxAdjustStrengthStepHint}, ${maxAdjustStrengthStepHint}]。`,
           },
         },
         required: ['channel', 'delta'],
@@ -263,13 +275,14 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
       return {
         name: 'change_wave',
         description: [
-          '【切换波形工具】在不改变当前强度的前提下，更换一个通道的波形。',
-          '适合已经启动后换节奏、换触感；如果通道还没启动，应改用 start。',
-          '只改波形，不改强度；如果用户是要“再强一点”，优先用 adjust_strength。',
-          waveformDescription ? `可用波形：${waveformDescription}` : '',
+          '【切换波形】在不改变强度的前提下更换一个通道的波形。',
+          '触发：已启动后想换节奏、换触感时使用。',
+          '不用：想加强 → adjust_strength；通道未启动 → start。',
+          '约束：仅切波形不动强度，切换后停下来描述新感觉。',
+          waveformDescription ? `可用波形：${waveformDescription}。` : '',
         ]
           .filter(Boolean)
-          .join(' '),
+          .join('\n'),
         parameters: {
           type: 'object',
           properties: {
@@ -277,7 +290,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
             waveformId: await buildWaveformIdParameter(deps.waveformLibrary),
             loop: {
               type: 'boolean',
-              description: '是否循环播放波形（默认 true）',
+              description: '是否循环播放波形，默认 true。',
             },
           },
           required: ['channel', 'waveformId'],
@@ -326,11 +339,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
     definition: {
       name: 'burst',
       description: [
-        '【短时脉冲工具】把一个正在运行的通道短暂拉到目标强度，持续一小段时间后自动回落。',
-        '只适合制造短促峰值，不能拿来绕过 start 的软启动限制。',
-        '这个工具要求通道已经在运行；如果当前还是停止状态，应先用 start。',
-        `durationMs 建议控制在 100-${maxBurstDurationMsHint}ms。做完 burst 后通常应该先停下来观察反馈。`,
-      ].join(' '),
+        '【短时脉冲】把一个正在运行的通道短暂拉到目标强度，持续一段时间后自动回落。',
+        '触发：制造短促峰值、强烈点射感时使用。',
+        '不用：通道未启动 → 先 start；想长期提升强度 → adjust_strength。',
+        `约束：本回合最多调用 ${maxBurstCallsHint} 次，单次时长 100-${maxBurstDurationMsHint}ms，完成后先停下来观察反馈。`,
+      ].join('\n'),
       parameters: {
         type: 'object',
         properties: {
@@ -339,13 +352,13 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
             type: 'integer',
             minimum: 0,
             maximum: 200,
-            description: '脉冲期间的目标强度（仍然受设备上限和用户上限约束）',
+            description: '脉冲期间的目标强度（受设备上限和用户上限约束）。',
           },
           durationMs: {
             type: 'integer',
             minimum: 100,
             maximum: maxBurstDurationMsHint,
-            description: `脉冲持续时间（毫秒）（建议保持在 100-${maxBurstDurationMsHint}ms 内）`,
+            description: `脉冲持续时间（毫秒），范围 [100, ${maxBurstDurationMsHint}]。`,
           },
         },
         required: ['channel', 'strength', 'durationMs'],
@@ -384,10 +397,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
     definition: {
       name: 'timer',
       description: [
-        '【定时器工具】设置一个延迟提醒，在指定秒数后由系统重新触发一轮内部跟进。',
-        '适合安排“过一会儿再问感受”或“稍后提醒”的流程。',
-        '定时到期后收到的是内部提醒，不是用户新消息；到期回合只应简短跟进，不要自动继续操作设备。',
-      ].join(' '),
+        '【设置定时器】指定秒数后由系统触发一次内部跟进。',
+        '触发：需要"过一会儿再问"、"稍后提醒"的流程时使用。',
+        '不用：想立即跟进直接发文字回复，不需要定时器。',
+        '约束：到期回合是内部触发不是用户消息，到期回合只能简短跟进，禁止自动操作设备。',
+      ].join('\n'),
       parameters: {
         type: 'object',
         properties: {
@@ -395,11 +409,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
             type: 'integer',
             minimum: 1,
             maximum: 3600,
-            description: '倒计时秒数（范围 1-3600）',
+            description: '倒计时秒数，范围 [1, 3600]。',
           },
           label: {
             type: 'string',
-            description: '给这次提醒起一个简短标签，方便到期时识别用途',
+            description: '给这次提醒起一个简短标签，方便到期时识别用途。',
           },
         },
         required: ['seconds', 'label'],

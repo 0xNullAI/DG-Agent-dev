@@ -101,7 +101,9 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       toolDefinitionHints: {
         maxColdStartStrength: settings.maxColdStartStrength,
         maxAdjustStrengthStep: settings.maxAdjustStrengthStep,
+        maxAdjustStrengthCallsPerTurn: settings.maxAdjustStrengthCallsPerTurn,
         maxBurstDurationMs: settings.maxBurstDurationMs,
+        maxBurstCallsPerTurn: settings.maxBurstCallsPerTurn,
       },
     }),
     permission:
@@ -123,8 +125,6 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       savedPromptPresets: settings.savedPromptPresets,
       maxStrengthA: settings.maxStrengthA,
       maxStrengthB: settings.maxStrengthB,
-      maxAdjustStrengthCallsPerTurn: settings.maxAdjustStrengthCallsPerTurn,
-      maxAdjustStrengthStep: settings.maxAdjustStrengthStep,
     }),
     toolCallConfig: {
       maxToolIterations: settings.maxToolIterations,
