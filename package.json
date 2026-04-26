@@ -27,7 +27,6 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "gh-pages": "^6.3.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
@@ -36,6 +35,12 @@
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.0",
     "vitest": "^4.1.4"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "semi": true,
+    "singleQuote": true,
+    "trailingComma": "all"
   },
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx,css,json,md}": [
